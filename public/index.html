@@ -1686,16 +1686,45 @@
 
             toggleControl.addTo(mapInstance);
         }
+// --- 災害儀表板邏輯 ---
+
 function myNewFunction() {
     // 顯示剛剛建立的災情監控面板
     const modal = document.getElementById('disaster-modal');
     if (modal) {
         modal.style.display = 'flex';
-        // 觸發資料抓取
+        // 呼叫資料抓取函式
         fetchDisasterData();
     } else {
         alert("儀表板元件尚未設定完成，請確認 HTML 是否已加入！");
     }
+}
+
+// 加入關閉功能
+function closeDisasterModal() {
+    const modal = document.getElementById('disaster-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 資料獲取函式
+function fetchDisasterData() {
+    const content = document.getElementById('disaster-content');
+    if (!content) return;
+    
+    // 這裡我們先用模擬資料，後續若要接氣象署 API 再補上
+    content.innerHTML = `
+        <div style="margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+            <b style="color:#ffc107;">地震狀態：</b> 最近一次規模 4.2 (花蓮海域)
+        </div>
+        <div style="margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+            <b style="color:#3b82f6;">潮汐預報：</b> 滿潮時間 19:30 (淡水站)
+        </div>
+        <div style="margin-bottom:15px;">
+            <b style="color:#ef4444;">豪雨預報：</b> 目前無立即警報
+        </div>
+    `;
 }
     </script>
     <div id="disaster-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; justify-content:center; align-items:center;">
