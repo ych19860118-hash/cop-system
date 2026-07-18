@@ -1708,23 +1708,42 @@ function closeDisasterModal() {
     }
 }
 
-// 資料獲取函式
-function fetchDisasterData() {
+// 資料獲取函式 (更新版：已串接氣象署 API)
+async function fetchDisasterData() {
     const content = document.getElementById('disaster-content');
     if (!content) return;
-    
-    // 這裡我們先用模擬資料，後續若要接氣象署 API 再補上
-    content.innerHTML = `
-        <div style="margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
-            <b style="color:#ffc107;">地震狀態：</b> 最近一次規模 4.2 (花蓮海域)
-        </div>
-        <div style="margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
-            <b style="color:#3b82f6;">潮汐預報：</b> 滿潮時間 19:30 (淡水站)
-        </div>
-        <div style="margin-bottom:15px;">
-            <b style="color:#ef4444;">豪雨預報：</b> 目前無立即警報
-        </div>
-    `;
+
+    // 先顯示載入中
+    content.innerHTML = "正在向氣象署查詢最新地震資料...";
+
+    const apiKey = "CWA-2E7EC676-1235-48FF-906B-EAB529F3B533";
+    const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0016-001?Authorization=${apiKey}`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        // 解析第一筆最新地震資料
+        const eq = data.records.EarthquakeInfo[0];
+        const location = eq.Epicenter.Location;
+        const mag = eq.EarthquakeMagnitude.MagnitudeValue;
+        const time = eq.OriginTime;
+
+        // 更新視窗內容
+        content.innerHTML = `
+            <div style="margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+                <b style="color:#ffc107;">最新地震：</b><br>
+                規模 ${mag}，發生於 ${location}<br>
+                <small>時間: ${time}</small>
+            </div>
+            <div style="margin-bottom:15px;">
+                <b style="color:#3b82f6;">氣象狀態：</b> 系統連線正常
+            </div>
+        `;
+    } catch (error) {
+        console.error("抓取失敗:", error);
+        content.innerHTML = `<b style="color:red;">無法取得資料，請檢查 API 權限或網路連線。</b>`;
+    }
 }
     </script>
     <div id="disaster-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; justify-content:center; align-items:center;">
