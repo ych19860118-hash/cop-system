@@ -1700,7 +1700,28 @@ function myNewFunction() {
     }
 }
 
-// 加入關閉功能
+// 1. 全域變數：建立地圖圖層群組 (請確保 'map' 變數在程式中已定義)
+const alertLayer = L.layerGroup().addTo(map);
+
+// 2. 繪製圖層的函式
+function updateMapLayers(records) {
+    alertLayer.clearLayers(); // 清除舊標記
+    
+    records.forEach(rec => {
+        const desc = rec.datasetInfo.datasetDescription;
+        // 如果是豪雨或強風，在地圖上畫圈示警 (示意圓圈)
+        if (desc.includes("豪雨") || desc.includes("強風")) {
+            L.circle([23.5, 121.0], {
+                color: desc.includes("豪雨") ? '#ef4444' : '#f59e0b',
+                fillColor: desc.includes("豪雨") ? '#ef4444' : '#f59e0b',
+                fillOpacity: 0.3,
+                radius: 80000 
+            }).addTo(alertLayer).bindPopup(`<b>${desc}</b><br>影響區域詳見警報說明`);
+        }
+    });
+}
+
+// 3. 關閉視窗函式
 function closeDisasterModal() {
     const modal = document.getElementById('disaster-modal');
     if (modal) {
@@ -1708,7 +1729,7 @@ function closeDisasterModal() {
     }
 }
 
-// 資料獲取函式 (更新版：已串接氣象署 API)
+// 4. 資料獲取與整合函式
 async function fetchDisasterData() {
     const content = document.getElementById('disaster-content');
     if (!content) return;
@@ -1716,18 +1737,19 @@ async function fetchDisasterData() {
     content.innerHTML = "正在向氣象署查詢最新警報...";
 
     const apiKey = "CWA-2E7EC676-1235-48FF-906B-EAB529F3B533";
-    // 改用這組網址，這是目前確定有資料回傳的端點
     const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-002?Authorization=${apiKey}&format=JSON`;
 
     try {
         const response = await fetch(url);
         const data = await response.json();
         
-        // 抓取 records 裡面的 record 陣列
         const records = data.records.record;
-        let htmlOutput = "";
+        
+        // 呼叫圖層繪製功能
+        updateMapLayers(records);
 
-        // 將所有警報內容組合起來
+        // 更新監控儀表板文字
+        let htmlOutput = "";
         records.forEach(rec => {
             const desc = rec.datasetInfo.datasetDescription;
             const text = rec.contents.content.contentText.trim();
