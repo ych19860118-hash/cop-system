@@ -1686,16 +1686,26 @@
 
             toggleControl.addTo(mapInstance);
         }
-        function myNewFunction() {
-    // 這裡替換成您想實現的功能
-    console.log("新功能按鈕已被點擊");
-    
-    // 範例：彈出視窗
-    alert("新功能已啟動！");
-    
-    // 如果您未來有實作其他 UI (例如自訂 Modal)，可以在這裡控制顯示：
-    // document.getElementById('my-new-modal').style.display = 'flex';
+function myNewFunction() {
+    // 顯示剛剛建立的災情監控面板
+    const modal = document.getElementById('disaster-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // 觸發資料抓取
+        fetchDisasterData();
+    } else {
+        alert("儀表板元件尚未設定完成，請確認 HTML 是否已加入！");
+    }
 }
     </script>
+    <div id="disaster-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; justify-content:center; align-items:center;">
+    <div style="background:#1a1d21; color:#fff; padding:20px; border-radius:10px; width:90%; max-width:500px; max-height:80vh; overflow-y:auto; border:1px solid #39ff14;">
+        <h3 style="color:#39ff14; margin-top:0;">🚨 災害即時監控儀表板</h3>
+        <div id="disaster-content">
+            <p>正在載入災害資訊...</p>
+        </div>
+        <button onclick="closeDisasterModal()" style="margin-top:20px; width:100%; padding:10px; background:#39ff14; border:none; color:#000; font-weight:bold; cursor:pointer;">關閉</button>
+    </div>
+</div>
 </body>
 </html>
