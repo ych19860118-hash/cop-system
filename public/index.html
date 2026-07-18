@@ -1466,45 +1466,51 @@
             switchTool('pan');
         }
 
-        async function executeSearchLocation() {
-            const query = document.getElementById('search-query-input').value.trim();
-            if (!query) { alert("請輸入有效的地址或經緯度座標！"); return; }
-            closeSearchModal();
+       async function executeSearchLocation() {
+    const query = document.getElementById('search-query-input').value.trim();
+    if (!query) {
+        alert("請輸入有效的地址或經緯度座標！");
+        return;
+    }
+    closeSearchModal();
 
-            const coordMatch = query.match(/^([-+]?\d{1,2}(?:\.\d+)?),\s*([-+]?\d{1,3}(?:\.\d+)?)$/);
+    // 檢查是否為經緯度座標 (如: 24.123, 121.456)
+    const coordMatch = query.match(/^([-+]?\d{1,2}(?:\.\d+)?),\s*([-+]?\d{1,3}(?:\.\d+)?)$/);
+
+    if (coordMatch) {
+        const lat = parseFloat(coordMatch[1]);
+        const lng = parseFloat(coordMatch[2]);
+        map.setView([lat, lng], 16);
+        if (searchTempMarker) map.removeLayer(searchTempMarker);
+        searchTempMarker = L.marker([lat, lng]).addTo(map).bindPopup(`📍 座標定位: ${lat}, ${lng}`).openPopup();
+        showToast("✅ 已成功根據座標定位");
+    } else {
+        showToast("🔍 正在查詢地址，請稍候...");
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+        
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP 錯誤狀態: ${response.status}`);
             
-            if (coordMatch) {
-                const lat = parseFloat(coordMatch[1]);
-                const lng = parseFloat(coordMatch[2]);
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lng = parseFloat(data[0].lon);
+                
                 map.setView([lat, lng], 16);
                 if (searchTempMarker) map.removeLayer(searchTempMarker);
-                searchTempMarker = L.marker([lat, lng]).addTo(map).bindPopup(`📍 座標定位: ${lat}, ${lng}`).openPopup();
-                showToast("✅ 已成功根據座標定位");
+                searchTempMarker = L.marker([lat, lng]).addTo(map).bindPopup(`📍 ${data[0].display_name}`).openPopup();
+                showToast("✅ 已成功找到該地址");
             } else {
-                showToast("🔍 正在查詢地址，請稍候...");
-                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
-                try {
-        const response = await fetch(url);
-        // 如果連線狀態不是 200，抓出錯誤訊息
-        if (!response.ok) {
-            throw new Error(`HTTP 錯誤狀態: ${response.status}`);
-        }
-        const data = await response.json();
-        const records = data.records.record;
-                        map.setView([lat, lng], 16);
-                        if (searchTempMarker) map.removeLayer(searchTempMarker);
-                        searchTempMarker = L.marker([lat, lng]).addTo(map).bindPopup(`📍 ${data[0].display_name}`).openPopup();
-                        showToast("✅ 已成功找到該地址");
-                    } else {
-                        alert("找不到該地址，請嘗試更精確的關鍵字或直接輸入經緯度。");
-                    }
-               } catch (error) {
-        console.error("錯誤細節:", error);
-        // 把具體的錯誤訊息顯示出來
-        content.innerHTML = `<b style="color:red;">錯誤: ${error.message}。請確認 API Key 是否正確。</b>`;
-    }
+                alert("找不到該地址，請嘗試更精確的關鍵字或直接輸入經緯度。");
             }
+        } catch (error) {
+            console.error("搜尋錯誤:", error);
+            alert("搜尋過程發生錯誤，請檢查網路連線。");
         }
+    }
+}
 
         let myLocationMarker = null;
         function processGPS(mode) {
