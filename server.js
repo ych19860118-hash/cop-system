@@ -9,7 +9,22 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.use(express.static(path.join(__dirname, 'public')));
+const axios = require('axios'); // 請確保已執行 npm install axios
 
+// 氣象資訊代理 API
+app.get('/api/weather/data', async (req, res) => {
+    const CWA_KEY = process.env.CWA_API_KEY; // 安全讀取環境變數
+    if (!CWA_KEY) return res.status(500).json({ error: "伺服器未設定 API Key" });
+
+    try {
+        // 以「全臺雨量」為例，您可以更換為其他 CWA 開放資料集 URL
+        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001?Authorization=${CWA_KEY}&format=JSON`;
+        const response = await axios.get(url);
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: "無法取得氣象資料" });
+    }
+});
 // 開放本機套件路徑（確保 CSS/JS 同源無阻擋）
 app.use('/leaflet', express.static(path.join(__dirname, 'node_modules', 'leaflet', 'dist')));
 
