@@ -1484,12 +1484,13 @@
                 showToast("🔍 正在查詢地址，請稍候...");
                 const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
                 try {
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error("Network response was not ok");
-                    const data = await response.json();
-                    if (data && data.length > 0) {
-                        const lat = parseFloat(data[0].lat);
-                        const lng = parseFloat(data[0].lon);
+        const response = await fetch(url);
+        // 如果連線狀態不是 200，抓出錯誤訊息
+        if (!response.ok) {
+            throw new Error(`HTTP 錯誤狀態: ${response.status}`);
+        }
+        const data = await response.json();
+        const records = data.records.record;
                         map.setView([lat, lng], 16);
                         if (searchTempMarker) map.removeLayer(searchTempMarker);
                         searchTempMarker = L.marker([lat, lng]).addTo(map).bindPopup(`📍 ${data[0].display_name}`).openPopup();
@@ -1497,10 +1498,11 @@
                     } else {
                         alert("找不到該地址，請嘗試更精確的關鍵字或直接輸入經緯度。");
                     }
-                } catch (error) {
-                    console.error("地址查詢失敗:", error);
-                    alert("網路查詢失敗，請檢查網路連線。");
-                }
+               } catch (error) {
+        console.error("錯誤細節:", error);
+        // 把具體的錯誤訊息顯示出來
+        content.innerHTML = `<b style="color:red;">錯誤: ${error.message}。請確認 API Key 是否正確。</b>`;
+    }
             }
         }
 
