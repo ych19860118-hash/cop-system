@@ -1713,36 +1713,36 @@ async function fetchDisasterData() {
     const content = document.getElementById('disaster-content');
     if (!content) return;
 
-    // 先顯示載入中
-    content.innerHTML = "正在向氣象署查詢最新地震資料...";
+    content.innerHTML = "正在向氣象署查詢最新警報...";
 
     const apiKey = "CWA-2E7EC676-1235-48FF-906B-EAB529F3B533";
-    const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0016-001?Authorization=${apiKey}`;
+    // 改用這組網址，這是目前確定有資料回傳的端點
+    const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-002?Authorization=${apiKey}&format=JSON`;
 
     try {
         const response = await fetch(url);
         const data = await response.json();
         
-        // 解析第一筆最新地震資料
-        const eq = data.records.EarthquakeInfo[0];
-        const location = eq.Epicenter.Location;
-        const mag = eq.EarthquakeMagnitude.MagnitudeValue;
-        const time = eq.OriginTime;
+        // 抓取 records 裡面的 record 陣列
+        const records = data.records.record;
+        let htmlOutput = "";
 
-        // 更新視窗內容
-        content.innerHTML = `
-            <div style="margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
-                <b style="color:#ffc107;">最新地震：</b><br>
-                規模 ${mag}，發生於 ${location}<br>
-                <small>時間: ${time}</small>
-            </div>
-            <div style="margin-bottom:15px;">
-                <b style="color:#3b82f6;">氣象狀態：</b> 系統連線正常
-            </div>
-        `;
+        // 將所有警報內容組合起來
+        records.forEach(rec => {
+            const desc = rec.datasetInfo.datasetDescription;
+            const text = rec.contents.content.contentText.trim();
+            htmlOutput += `
+                <div style="margin-bottom:15px; border-bottom:1px solid #444; padding-bottom:10px;">
+                    <b style="color:#39ff14;">${desc}：</b>
+                    <p style="font-size:0.9em; line-height:1.4; color:#ccc; margin-top:5px;">${text}</p>
+                </div>
+            `;
+        });
+
+        content.innerHTML = htmlOutput || "目前無發布中的警特報。";
     } catch (error) {
         console.error("抓取失敗:", error);
-        content.innerHTML = `<b style="color:red;">無法取得資料，請檢查 API 權限或網路連線。</b>`;
+        content.innerHTML = `<b style="color:red;">資料讀取失敗，請確認網路連線。</b>`;
     }
 }
     </script>
