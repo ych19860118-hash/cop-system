@@ -346,6 +346,12 @@
         <button class="tool-btn" id="btn-search" onclick="openSearchModal()" title="地址或座標搜尋定位" style="color: #39ff14;">
             🔍
         </button>
+<button class="tool-btn" id="btn-new-feature" onclick="myNewFunction()" title="新功能">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+</button>
     </div>
 
     <!-- 搜尋輸入對話框 -->
@@ -1680,6 +1686,16 @@
 
             toggleControl.addTo(mapInstance);
         }
+        function myNewFunction() {
+    // 這裡替換成您想實現的功能
+    console.log("新功能按鈕已被點擊");
+    
+    // 範例：彈出視窗
+    alert("新功能已啟動！");
+    
+    // 如果您未來有實作其他 UI (例如自訂 Modal)，可以在這裡控制顯示：
+    // document.getElementById('my-new-modal').style.display = 'flex';
+}
     </script>
 </body>
 </html>
