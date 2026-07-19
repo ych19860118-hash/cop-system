@@ -1023,14 +1023,27 @@ function renderOnlineUsers() {
             if (e.key === 'Enter') sendChat();
         }
 
-        function appendChatMessage(sender, message, time) {
-            const container = document.getElementById('chat-messages');
-            const bubble = document.createElement('div');
-            bubble.className = 'chat-bubble';
-            bubble.innerHTML = `<span class="sender">${sender}:</span>${escapeHtml(message)}<div class="time">${time}</div>`;
-            container.appendChild(bubble);
-            container.scrollTop = container.scrollHeight;
-        }
+function appendChatMessage(sender, message, time) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return; // 安全檢查
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+
+    // 【新增判斷】：如果是系統通知，給予特別樣式
+    if (sender === "系統通知") {
+        bubble.style.backgroundColor = "#ffe6e6"; // 淡淡的紅色背景
+        bubble.style.border = "1px solid #ffcccc";
+        bubble.style.color = "#d9534f"; // 深紅色文字
+        bubble.style.textAlign = "center"; // 系統訊息置中看起來更專業
+        bubble.style.fontWeight = "bold";
+    }
+
+    bubble.innerHTML = `<span class="sender">${sender}:</span>${escapeHtml(message)}<div class="time">${time}</div>`;
+    
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+}
 
         function escapeHtml(text) {
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
