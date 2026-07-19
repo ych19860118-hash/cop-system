@@ -10,7 +10,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/leaflet', express.static(path.join(__dirname, 'node_modules', 'leaflet', 'dist')));
 
-// --- API 輔助函式 (假設您有定義 getApiKey) ---
+// --- API 輔助函式 ---
 function getApiKey() { return process.env.CWA_API_KEY || ""; }
 
 // --- API Endpoints ---
@@ -22,7 +22,6 @@ app.get('/api/earthquake/data', async (req, res) => {
     } catch (error) { res.status(502).json({ error: "無法取得地震資料" }); }
 });
 
-// (Weather API 邏輯保持不變...)
 let weatherCache = { data: null, lastFetch: 0 };
 const CACHE_DURATION = 300000;
 app.get('/api/weather/data', async (req, res) => {
@@ -36,7 +35,7 @@ app.get('/api/weather/data', async (req, res) => {
     } catch (error) { res.status(502).json({ error: "無法取得氣象資料" }); }
 });
 
-// --- 頻道與 Socket 邏輯 ---
+// --- Socket.io 狀態管理 ---
 let rooms = {
     "公開頻道(訪客)無須密碼": { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() }, 
     "公開頻道(風災)無須密碼": { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() }
@@ -72,29 +71,34 @@ io.on('connection', (socket) => {
         socket.myRoom = data.roomName;
         socket.myName = data.username;
 
-        if (!rooms[data.roomName]) rooms[data.roomName] = { objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
+        if (!rooms[data.roomName]) {
+            rooms[data.roomName] = { objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
+        }
         
-        // 修正：確保加入的是純淨的物件，避免包含 socket 物件本身
         rooms[data.roomName].userList.push({ id: socket.id, name: data.username });
         rooms[data.roomName].lastActive = Date.now();
 
-        // 廣播給該房間所有人
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
-        
         socket.emit('history_objects', rooms[data.roomName].objects);
+    });
+
+    socket.on('new_object', (objData) => { 
+        if (socket.myRoom && rooms[socket.myRoom]) { 
+            rooms[socket.myRoom].objects.push(objData); 
+            rooms[socket.myRoom].lastActive = Date.now();
+            io.to(socket.myRoom).emit('object_added', objData); 
+        }
     });
 
     socket.on('delete_object', (objId) => {
         const room = rooms[socket.myRoom];
-        if (room) {
-            const index = room.findIndex(o => o.id === objId);
+        if (room && room.objects) {
+            const index = room.objects.findIndex(o => o.id === objId);
             if (index !== -1) {
                 room.objects.splice(index, 1);
                 room.lastActive = Date.now();
-                // 修正：明確廣播刪除事件
                 io.to(socket.myRoom).emit('object_removed', objId);
-                console.log(`[同步] 物件 ${objId} 已在房間 ${socket.myRoom} 中刪除`);
             }
         }
     });
@@ -106,16 +110,7 @@ io.on('connection', (socket) => {
         rooms[socket.myRoom].chatHistory.push(chatData);
         rooms[socket.myRoom].lastActive = Date.now();
         
-        // 修正：確保聊天訊息發送至對應房間
         io.to(socket.myRoom).emit('new_chat_message', chatData);
-    });
-
-    socket.on('new_object', (objData) => { 
-        if (socket.myRoom && rooms[socket.myRoom]) { 
-            rooms[socket.myRoom].objects.push(objData); 
-            rooms[socket.myRoom].lastActive = Date.now();
-            io.to(socket.myRoom).emit('object_added', objData); 
-        }
     });
 
     socket.on('disconnect', () => {
