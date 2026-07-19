@@ -1716,17 +1716,32 @@ function myNewFunction() {
                 <p>降雨機率：<span id="pop-val">-</span>%</p>
                 <p>氣溫：<span id="temp-val">-</span> °C</p>
             </div>
-            <div id="disaster-content">載入中...</div>
-            <button id="close-btn" style="width:100%; padding:10px; background:#39ff14; color:black; border:none; font-weight:bold; cursor:pointer;">關閉</button>
+            <h4 style="margin:0;">即時災害警報</h4>
+            <div id="disaster-content" style="padding:10px; border-radius:5px; color:#ff3e3e;">載入中...</div>
+            <button id="close-btn" style="width:100%; padding:10px; margin-top:15px; background:#39ff14; color:black; border:none; font-weight:bold; cursor:pointer;">關閉</button>
         </div>`;
     
     document.body.appendChild(modal);
     document.getElementById('close-btn').onclick = () => modal.remove();
 
-    // 2. 獲取資料並更新 UI
+    // 2. 獲取資料
     const API_KEY = 'CWA-2E7EC676-1235-48FF-906B-EAB529F3B533';
-    let cachedWeatherData = null; // 用來快取 API 資料，避免重複請求
+    let cachedWeatherData = null;
 
+    // --- 新增：災害警報邏輯 ---
+    fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-002?Authorization=${API_KEY}`)
+        .then(res => res.json())
+        .then(data => {
+            const disasterDiv = document.getElementById('disaster-content');
+            // 檢查 API 資料結構是否包含警報訊息
+            const alerts = data.records.MsgSource; 
+            disasterDiv.innerText = alerts ? alerts : "目前無發布重大災害警報。";
+        })
+        .catch(() => {
+            document.getElementById('disaster-content').innerText = "警報系統目前無法連線。";
+        });
+
+    // --- 天氣邏輯 ---
     function updateWeatherUI(cityName) {
         if (!cachedWeatherData) return;
         const weather = getCityWeather(cachedWeatherData, cityName);
@@ -1737,23 +1752,16 @@ function myNewFunction() {
         }
     }
 
-    // 呼叫 API 一次
     fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${API_KEY}`)
         .then(res => res.json())
         .then(data => {
             cachedWeatherData = data;
-            updateWeatherUI('桃園市'); // 初始載入
-        })
-        .catch(err => {
-            document.getElementById('weather-container').innerHTML = "<p style='color:red;'>天氣資料讀取失敗</p>";
-            console.error(err);
+            updateWeatherUI('桃園市');
         });
 
-    // 綁定選單事件
     document.getElementById('city-select').onchange = (e) => updateWeatherUI(e.target.value);
 }
 
-// 輔助函式：提取指定縣市的資料
 function getCityWeather(data, cityName) {
     const location = data.records.location.find(loc => loc.locationName === cityName);
     if (!location) return null;
