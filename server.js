@@ -43,30 +43,19 @@ let rooms = {
     "公開頻道(訪客)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [] }, 
     "公開頻道(風災)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [] }
 };
-const ADMIN_SECRET = "adminyu"; 
 
 app.post('/api/login', (req, res) => {
     const { username, roomName, roomPassword } = req.body;
-    
     if (!username) return res.json({ success: false, message: "請輸入暱稱" });
 
-    // 處理頻道不存在的情況（假設是用戶自定義的新頻道）
-    if (!rooms[roomName]) {
-        // 如果是自定義頻道，這裡可以加入儲存邏輯
-        // 若為公開頻道則無需密碼，若為私用頻道則需驗證
-        return res.json({ success: true, username, roomName });
-    }
+    if (!rooms[roomName]) rooms[roomName] = { password: "", objects: [], events: [], chatHistory: [], userList: [] };
 
-    // 密碼檢查邏輯
     const room = rooms[roomName];
-    
-    // 如果選項包含「無須密碼」字樣，則跳過密碼驗證
     const isPublic = roomName.includes("無須密碼");
     
-    if (!isPublic && room.password !== roomPassword) {
+    if (!isPublic && room.password !== "" && room.password !== roomPassword) {
         return res.json({ success: false, message: "密碼錯誤" });
     }
-    
     res.json({ success: true, username, roomName });
 });
 
@@ -76,12 +65,9 @@ io.on('connection', (socket) => {
         socket.myRoom = data.roomName;
         socket.myName = data.username;
 
-        // 初始化並加入用戶列表
         if (!rooms[data.roomName]) rooms[data.roomName] = { objects: [], events: [], chatHistory: [], userList: [] };
-        if (!rooms[data.roomName].userList) rooms[data.roomName].userList = [];
         rooms[data.roomName].userList.push(data.username);
 
-        // 發送更新給頻道內所有人
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('user_notification', { name: data.username, action: 'joined' });
@@ -89,13 +75,20 @@ io.on('connection', (socket) => {
         socket.emit('history_objects', rooms[data.roomName].objects);
     });
 
-    socket.on('disconnect', () => {
-        if (socket.myRoom && rooms[socket.myRoom]) {
-            rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
-            
-            io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
-            io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
-            io.to(socket.myRoom).emit('user_notification', { name: socket.myName, action: 'left' });
+    // 處理刪除物件
+    socket.on('delete_object', (objId) => {
+        if (rooms[socket.myRoom]) {
+            rooms[socket.myRoom].objects = rooms[socket.myRoom].objects.filter(o => o.id !== objId);
+            io.to(socket.myRoom).emit('object_removed', objId);
+        }
+    });
+
+    // 處理聊天訊息與提醒
+    socket.on('send_chat', (msg) => {
+        const chatData = { name: socket.myName, text: msg, time: new Date().toLocaleTimeString() };
+        if (rooms[socket.myRoom]) {
+            rooms[socket.myRoom].chatHistory.push(chatData);
+            io.to(socket.myRoom).emit('new_chat_message', chatData);
         }
     });
 
@@ -103,6 +96,15 @@ io.on('connection', (socket) => {
         if (rooms[socket.myRoom]) { 
             rooms[socket.myRoom].objects.push(objData); 
             io.to(socket.myRoom).emit('object_added', objData); 
+        }
+    });
+
+    socket.on('disconnect', () => {
+        if (socket.myRoom && rooms[socket.myRoom]) {
+            rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
+            io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
+            io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
+            io.to(socket.myRoom).emit('user_notification', { name: socket.myName, action: 'left' });
         }
     });
 });
