@@ -40,8 +40,8 @@ app.get('/api/weather/forecast', async (req, res) => {
 
 // --- 頻道與 Socket 邏輯 ---
 let rooms = {
-    "公開頻道(風災)": { password: "", objects: [], events: [], users: 0 }, 
-    "公開頻道(震災)": { password: "", objects: [], events: [], users: 0 }
+    "公開頻道(風災)": { password: "", objects: [], events: [], chatHistory: [], userList: [] }, 
+    "公開頻道(震災)": { password: "", objects: [], events: [], chatHistory: [], userList: [] }
 };
 const ADMIN_SECRET = "adminyu"; 
 
@@ -60,20 +60,28 @@ io.on('connection', (socket) => {
     socket.on('join_room', (data) => {
         socket.join(data.roomName);
         socket.myRoom = data.roomName;
+        socket.myName = data.username;
+
+        // 初始化並加入用戶列表
+        if (!rooms[data.roomName]) rooms[data.roomName] = { objects: [], events: [], chatHistory: [], userList: [] };
+        if (!rooms[data.roomName].userList) rooms[data.roomName].userList = [];
+        rooms[data.roomName].userList.push(data.username);
+
+        // 發送更新給頻道內所有人
+        io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
+        io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
+        io.to(data.roomName).emit('user_notification', { name: data.username, action: 'joined' });
         
-        // 增加人數
-        if (rooms[data.roomName]) {
-            rooms[data.roomName].users = (rooms[data.roomName].users || 0) + 1;
-            io.to(data.roomName).emit('update_user_count', rooms[data.roomName].users);
-        }
-        
-        socket.emit('history_objects', rooms[data.roomName]?.objects || []);
+        socket.emit('history_objects', rooms[data.roomName].objects);
     });
 
     socket.on('disconnect', () => {
         if (socket.myRoom && rooms[socket.myRoom]) {
-            rooms[socket.myRoom].users = Math.max(0, rooms[socket.myRoom].users - 1);
-            io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].users);
+            rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
+            
+            io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
+            io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
+            io.to(socket.myRoom).emit('user_notification', { name: socket.myName, action: 'left' });
         }
     });
 
