@@ -66,7 +66,9 @@ io.on('connection', (socket) => {
         socket.myName = data.username;
 
         if (!rooms[data.roomName]) rooms[data.roomName] = { objects: [], events: [], chatHistory: [], userList: [] };
-        rooms[data.roomName].userList.push(data.username);
+        
+        // 修改點：存入物件以確保 ID 唯一性
+        rooms[data.roomName].userList.push({ id: socket.id, name: data.username });
 
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
@@ -101,7 +103,9 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         if (socket.myRoom && rooms[socket.myRoom]) {
-            rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
+            // 修改點：使用 socket.id 精準過濾
+            rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u.id !== socket.id);
+            
             io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
             io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
             io.to(socket.myRoom).emit('user_notification', { name: socket.myName, action: 'left' });
