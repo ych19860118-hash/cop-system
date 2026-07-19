@@ -9,12 +9,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 輔助：格式化時間
+// 輔助函式：時間格式化
 function getFormattedTime() {
     return new Date().toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' });
 }
 
-// 全域房間狀態
+// 房間資料庫 (注意：伺服器重啟即會清空)
 let rooms = {
     "公開頻道(訪客)無須密碼": { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() }, 
     "公開頻道(風災)無須密碼": { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() }
@@ -24,7 +24,10 @@ let rooms = {
 app.post('/api/login', (req, res) => {
     const { username, roomName, roomPassword } = req.body;
     if (!username) return res.json({ success: false, message: "請輸入暱稱" });
-    if (!rooms[roomName]) rooms[roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
+    
+    if (!rooms[roomName]) {
+        rooms[roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
+    }
 
     const room = rooms[roomName];
     const isPublic = roomName.includes("無須密碼");
@@ -34,13 +37,13 @@ app.post('/api/login', (req, res) => {
     res.json({ success: true, username, roomName });
 });
 
-// Socket 事件處理
+// Socket 連線處理
 io.on('connection', (socket) => {
     
     socket.on('join_room', (data) => {
         socket.join(data.roomName);
         
-        // 1. 綁定資訊到 socket，確保 send_chat 和 disconnect 可讀取
+        // 綁定暱稱與房間資訊到 socket 物件
         socket.myName = data.username;
         socket.myRoom = data.roomName;
 
@@ -48,22 +51,24 @@ io.on('connection', (socket) => {
             rooms[data.roomName] = { objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
         
-        // 2. 加入用戶列表
+        // 加入使用者列表，強制使用 name 欄位
         rooms[data.roomName].userList.push({ id: socket.id, name: data.username });
         rooms[data.roomName].lastActive = Date.now();
 
-        // 3. 同步列表與歷史資料
+        // 廣播給房間內所有人
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
+        
+        // 發送歷史資料給剛進來的人
         socket.emit('history_objects', rooms[data.roomName].objects);
     });
 
     socket.on('send_chat', (msg) => {
         if (!socket.myRoom || !rooms[socket.myRoom]) return;
         
-        const chatData = { name: socket.myName, text: msg, time: getFormattedTime() };
+        // 強制使用 socket.myName
+        const chatData = { name: socket.myName || "匿名", text: msg, time: getFormattedTime() };
         rooms[socket.myRoom].chatHistory.push(chatData);
-        rooms[socket.myRoom].lastActive = Date.now();
         
         io.to(socket.myRoom).emit('new_chat_message', chatData);
     });
@@ -71,15 +76,13 @@ io.on('connection', (socket) => {
     socket.on('new_object', (objData) => { 
         if (socket.myRoom && rooms[socket.myRoom]) { 
             rooms[socket.myRoom].objects.push(objData); 
-            rooms[socket.myRoom].lastActive = Date.now();
             io.to(socket.myRoom).emit('object_added', objData); 
         }
     });
 
     socket.on('delete_object', (objId) => {
-        const room = rooms[socket.myRoom];
-        if (room && room.objects) {
-            room.objects = room.objects.filter(o => o.id !== objId);
+        if (socket.myRoom && rooms[socket.myRoom]) {
+            rooms[socket.myRoom].objects = rooms[socket.myRoom].objects.filter(o => o.id !== objId);
             io.to(socket.myRoom).emit('object_removed', objId);
         }
     });
