@@ -65,7 +65,11 @@ io.on('connection', (socket) => {
         
         rooms[data.roomName].userList.push({ id: socket.id, name: data.username });
         rooms[data.roomName].lastActive = Date.now();
-
+io.to(data.roomName).emit('new_chat_message', {
+        name: "系統通知",
+        text: `【${data.username}】已加入房間`,
+        time: getFormattedTime()
+    });
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         socket.emit('history_objects', rooms[data.roomName].objects);
