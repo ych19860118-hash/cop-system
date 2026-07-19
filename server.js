@@ -9,12 +9,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 輔助函式
+// 輔助：格式化時間
 function getFormattedTime() {
     return new Date().toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' });
 }
 
-// 房間資料結構
+// 全域房間狀態
 let rooms = {
     "公開頻道(訪客)無須密碼": { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() }, 
     "公開頻道(風災)無須密碼": { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() }
@@ -34,12 +34,13 @@ app.post('/api/login', (req, res) => {
     res.json({ success: true, username, roomName });
 });
 
-// Socket 連線邏輯
+// Socket 事件處理
 io.on('connection', (socket) => {
+    
     socket.on('join_room', (data) => {
         socket.join(data.roomName);
         
-        // 【核心修正】：綁定正確的名稱與房間，確保後續不會取到 undefined 或 ID
+        // 1. 綁定資訊到 socket，確保 send_chat 和 disconnect 可讀取
         socket.myName = data.username;
         socket.myRoom = data.roomName;
 
@@ -47,24 +48,20 @@ io.on('connection', (socket) => {
             rooms[data.roomName] = { objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
         
-        // 加入使用者列表，確保結構是 { id, name }
+        // 2. 加入用戶列表
         rooms[data.roomName].userList.push({ id: socket.id, name: data.username });
         rooms[data.roomName].lastActive = Date.now();
 
-        // 廣播給同房間的人
+        // 3. 同步列表與歷史資料
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
-        
-        // 發送歷史資料
         socket.emit('history_objects', rooms[data.roomName].objects);
     });
 
     socket.on('send_chat', (msg) => {
         if (!socket.myRoom || !rooms[socket.myRoom]) return;
         
-        // 確保 chatData 包含正確的 name
         const chatData = { name: socket.myName, text: msg, time: getFormattedTime() };
-        
         rooms[socket.myRoom].chatHistory.push(chatData);
         rooms[socket.myRoom].lastActive = Date.now();
         
