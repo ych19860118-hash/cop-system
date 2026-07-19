@@ -838,17 +838,17 @@
                 showToast(`[系統通知] ${data.name} 已經${actionText}頻道`);
             });
 
-            socket.on('receive_chat', function(data) {
-                appendChatMessage(data.sender, data.message, data.time);
+socket.on('new_chat_message', function(data) {
+    // 後端傳過來的資料結構是 { name, text, time }
+    appendChatMessage(data.name, data.text, data.time);
 
-                const chatPanel = document.getElementById('chat-panel');
-                const isHidden = (window.getComputedStyle(chatPanel).display === 'none');
-
-                if (isHidden) {
-                    const badge = document.getElementById('chat-badge');
-                    if (badge) badge.style.display = 'block';
-                }
-            });
+    const chatPanel = document.getElementById('chat-panel');
+    const isHidden = (window.getComputedStyle(chatPanel).display === 'none');
+    if (isHidden) {
+        const badge = document.getElementById('chat-badge');
+        if (badge) badge.style.display = 'block';
+    }
+});
             socket.on('event_added', function(evtData) {
                 renderEventOnMap(evtData);
                 showToast(`🚨 [${evtData.category}] ${evtData.sender} 剛剛回報了新狀況！`);
@@ -873,15 +873,15 @@
             });
 
             socket.on('object_added', data => renderObjectOnMap(data));
-            socket.on('object_deleted', id => {
-                if (allMapLayers[id]) {
-                    map.removeLayer(allMapLayers[id].layer);
-                    if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
-                    if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
-                    if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
-                    delete allMapLayers[id];
-                }
-            });
+  socket.on('object_removed', id => {
+    if (allMapLayers[id]) {
+        map.removeLayer(allMapLayers[id].layer);
+        if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
+        if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
+        if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
+        delete allMapLayers[id];
+    }
+});
             
             socket.on('clear_all_objects', () => {
                 Object.keys(allMapLayers).forEach(id => {
@@ -1003,13 +1003,22 @@
                 btn.classList.remove('active');
             }
         }
-        function sendChat() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if (!text || !socket) return;
-            socket.emit('send_chat', text);
-            input.value = '';
-        }
+ function sendChat() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    
+    // 檢查 socket 是否已連接
+    if (!text || !socket) {
+        if (!text) showToast("⚠️ 請輸入訊息內容");
+        return;
+    }
+
+    // 這裡的 'send_chat' 必須與您 server.js 中 socket.on('send_chat', ...) 的名稱完全一致
+    socket.emit('send_chat', text);
+    
+    // 清空輸入框
+    input.value = '';
+}
 
         function checkChatKey(e) {
             if (e.key === 'Enter') sendChat();
