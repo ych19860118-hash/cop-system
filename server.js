@@ -40,15 +40,27 @@ app.get('/api/weather/forecast', async (req, res) => {
 
 // --- 頻道與 Socket 邏輯 ---
 let rooms = {
-    "公開頻道(訪客)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [] }, 
-    "公開頻道(風災)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [] }
+    "公開頻道(訪客)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() }, 
+    "公開頻道(風災)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() }
 };
+
+// 自動清理機制：每 10 分鐘檢查一次，若無人且閒置超過 8 小時則刪除
+setInterval(() => {
+    const EIGHT_HOURS = 8 * 60 * 60 * 1000;
+    const now = Date.now();
+    for (const roomName in rooms) {
+        if (rooms[roomName].userList.length === 0 && (now - rooms[roomName].lastActive > EIGHT_HOURS)) {
+            delete rooms[roomName];
+            console.log(`[清理] 房間 ${roomName} 已閒置過久並被移除`);
+        }
+    }
+}, 10 * 60 * 1000);
 
 app.post('/api/login', (req, res) => {
     const { username, roomName, roomPassword } = req.body;
     if (!username) return res.json({ success: false, message: "請輸入暱稱" });
 
-    if (!rooms[roomName]) rooms[roomName] = { password: "", objects: [], events: [], chatHistory: [], userList: [] };
+    if (!rooms[roomName]) rooms[roomName] = { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() };
 
     const room = rooms[roomName];
     const isPublic = roomName.includes("無須密碼");
@@ -65,10 +77,10 @@ io.on('connection', (socket) => {
         socket.myRoom = data.roomName;
         socket.myName = data.username;
 
-        if (!rooms[data.roomName]) rooms[data.roomName] = { objects: [], events: [], chatHistory: [], userList: [] };
+        if (!rooms[data.roomName]) rooms[data.roomName] = { objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() };
         
-        // 修改點：存入物件以確保 ID 唯一性
         rooms[data.roomName].userList.push({ id: socket.id, name: data.username });
+        rooms[data.roomName].lastActive = Date.now(); // 更新活動時間
 
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
@@ -77,19 +89,19 @@ io.on('connection', (socket) => {
         socket.emit('history_objects', rooms[data.roomName].objects);
     });
 
-    // 處理刪除物件
     socket.on('delete_object', (objId) => {
         if (rooms[socket.myRoom]) {
             rooms[socket.myRoom].objects = rooms[socket.myRoom].objects.filter(o => o.id !== objId);
+            rooms[socket.myRoom].lastActive = Date.now();
             io.to(socket.myRoom).emit('object_removed', objId);
         }
     });
 
-    // 處理聊天訊息與提醒
     socket.on('send_chat', (msg) => {
         const chatData = { name: socket.myName, text: msg, time: new Date().toLocaleTimeString() };
         if (rooms[socket.myRoom]) {
             rooms[socket.myRoom].chatHistory.push(chatData);
+            rooms[socket.myRoom].lastActive = Date.now();
             io.to(socket.myRoom).emit('new_chat_message', chatData);
         }
     });
@@ -97,14 +109,15 @@ io.on('connection', (socket) => {
     socket.on('new_object', (objData) => { 
         if (rooms[socket.myRoom]) { 
             rooms[socket.myRoom].objects.push(objData); 
+            rooms[socket.myRoom].lastActive = Date.now();
             io.to(socket.myRoom).emit('object_added', objData); 
         }
     });
 
     socket.on('disconnect', () => {
         if (socket.myRoom && rooms[socket.myRoom]) {
-            // 修改點：使用 socket.id 精準過濾
             rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u.id !== socket.id);
+            rooms[socket.myRoom].lastActive = Date.now(); // 更新最後活動時間
             
             io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
             io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
