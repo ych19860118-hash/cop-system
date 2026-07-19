@@ -40,20 +40,34 @@ app.get('/api/weather/forecast', async (req, res) => {
 
 // --- 頻道與 Socket 邏輯 ---
 let rooms = {
-    "公開頻道(風災)": { password: "", objects: [], events: [], chatHistory: [], userList: [] }, 
-    "公開頻道(震災)": { password: "", objects: [], events: [], chatHistory: [], userList: [] }
+    "公開頻道(訪客)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [] }, 
+    "公開頻道(風災)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [] }
 };
 const ADMIN_SECRET = "adminyu"; 
 
 app.post('/api/login', (req, res) => {
-    const { username, roomName, roomPassword, adminSecret } = req.body;
-    const rName = roomName || "公開頻道(風災)";
+    const { username, roomName, roomPassword } = req.body;
     
     if (!username) return res.json({ success: false, message: "請輸入暱稱" });
-    if (rooms[rName] && rooms[rName].password !== "" && rooms[rName].password !== roomPassword) {
+
+    // 處理頻道不存在的情況（假設是用戶自定義的新頻道）
+    if (!rooms[roomName]) {
+        // 如果是自定義頻道，這裡可以加入儲存邏輯
+        // 若為公開頻道則無需密碼，若為私用頻道則需驗證
+        return res.json({ success: true, username, roomName });
+    }
+
+    // 密碼檢查邏輯
+    const room = rooms[roomName];
+    
+    // 如果選項包含「無須密碼」字樣，則跳過密碼驗證
+    const isPublic = roomName.includes("無須密碼");
+    
+    if (!isPublic && room.password !== roomPassword) {
         return res.json({ success: false, message: "密碼錯誤" });
     }
-    res.json({ success: true, username, roomName: rName });
+    
+    res.json({ success: true, username, roomName });
 });
 
 io.on('connection', (socket) => {
