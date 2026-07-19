@@ -1695,48 +1695,47 @@
 function myNewFunction() {
     let modal = document.getElementById('disaster-modal');
     
-    // --- 新增這段邏輯：如果視窗已經存在且顯示中，就把它隱藏 ---
+    // 1. 如果視窗已經存在且是開著的，直接把它關掉 (這讓您按 ⚠️ 按鈕就能開關)
     if (modal && modal.style.display === 'flex') {
         modal.style.display = 'none';
-        return; // 直接離開，後面不用執行
+        return;
     }
-    // --------------------------------------------------------
-
-    // 如果視窗不存在，才去建立它
+    
+    // 2. 如果不存在，建立它
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'disaster-modal';
-        modal.style = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center;";
+        // 使用固定的 CSS 確保它蓋在最上層
+        modal.style.cssText = "display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center;";
         modal.innerHTML = `
             <div style="background:#1a1d21; padding:20px; border:2px solid #39ff14; width:80%; max-height:80%; overflow-y:auto; color:white; border-radius:8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h3>🚨 最新氣象警特報</h3>
-                    <button onclick="this.closest('#disaster-modal').style.display='none'" style="background:#dc3545; color:white; border:none; padding:5px 10px; cursor:pointer;">關閉</button>
+                    <h3>🚨 災害即時監控儀表板</h3>
                 </div>
-                <div id="disaster-content">正在下載警報資料...</div>
+                <div id="disaster-content" style="margin-bottom:20px;">正在讀取資料...</div>
+                <button onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="width:100%; padding:15px; background:#39ff14; color:black; border:none; font-weight:bold; cursor:pointer;">關閉</button>
             </div>`;
         document.body.appendChild(modal);
+    } else {
+        modal.style.display = 'flex'; // 如果已經存在，重新顯示
     }
     
-    // 顯示視窗
-    modal.style.display = 'flex';
-    
-    // 下載資料
+    // 3. 抓取資料
     fetch('https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-002?Authorization=CWA-2E7EC676-1235-48FF-906B-EAB529F3B533&format=JSON')
         .then(res => res.json())
         .then(data => {
             const records = data.records.record;
             let html = "";
             records.forEach(rec => {
-                html += `<div style="margin-bottom:15px; border-bottom:1px solid #444; padding-bottom:10px;">
+                html += `<div style="margin-bottom:15px;">
                             <b style="color:#39ff14;">${rec.datasetInfo.datasetDescription}</b>
-                            <p style="font-size:0.9em; color:#ccc;">${rec.contents.content.contentText}</p>
+                            <p>${rec.contents.content.contentText}</p>
                         </div>`;
             });
             document.getElementById('disaster-content').innerHTML = html || "目前無發布中的警特報。";
         })
         .catch(() => {
-            document.getElementById('disaster-content').innerHTML = "下載失敗，請檢查網路。";
+            document.getElementById('disaster-content').innerHTML = "資料讀取失敗。";
         });
 }
     </script>
