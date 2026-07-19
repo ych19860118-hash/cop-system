@@ -1711,7 +1711,7 @@ function myNewFunction() {
             <div style="background:#1a1d21; padding:20px; border:2px solid #39ff14; width:80%; max-height:80%; overflow-y:auto; color:white; border-radius:8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                     <h3>🚨 最新氣象警特報</h3>
-                    <button onclick="document.getElementById('disaster-modal').style.display='none'" style="background:#dc3545; color:white; border:none; padding:5px 10px; cursor:pointer;">關閉</button>
+                    <button onclick="this.closest('#disaster-modal').style.display='none'" style="background:#dc3545; color:white; border:none; padding:5px 10px; cursor:pointer;">關閉</button>
                 </div>
                 <div id="disaster-content">正在下載警報資料...</div>
             </div>`;
