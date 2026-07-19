@@ -1701,22 +1701,58 @@ function myNewFunction() {
     modal.id = 'disaster-modal';
     modal.style.cssText = "display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:999999; align-items:center; justify-content:center; padding: 20px;";
     
-    modal.innerHTML = `
-        <div style="background:#1a1d21; padding:20px; border:2px solid #39ff14; width:100%; max-width: 600px; max-height:80%; overflow-y:auto; color:white; border-radius:8px;">
-            <h3 style="margin-top:0;">🚨 災害即時監控儀表板</h3>
+ modal.innerHTML = `
+        <div style="background:#1a1d21; padding:20px; border:2px solid #39ff14; width:80%; max-height:80%; overflow-y:auto; color:white; border-radius:8px;">
+            <h3>🚨 災害即時監控儀表板</h3>
+            
+            <!-- 【新增位置】：在這裡加入選單 -->
+            <select id="city-select" style="width:100%; padding:8px; margin-bottom:15px; border-radius:4px; background:#2c3136; color:white; border:1px solid #39ff14;">
+                <option value="桃園市">桃園市</option>
+                <option value="臺北市">臺北市</option>
+                <option value="新北市">新北市</option>
+                <option value="臺中市">臺中市</option>
+                <option value="高雄市">高雄市</option>
+            </select>
+
             <div id="weather-container" style="background:rgba(255,255,255,0.1); padding:10px; border-radius:5px; margin-bottom:15px;">
-                <h4 style="margin:0;">桃園市天氣趨勢</h4>
-                <p style="margin:5px 0;">天氣：<span id="wx-val">讀取中...</span></p>
-                <p style="margin:5px 0;">降雨機率：<span id="pop-val">-</span>%</p>
-                <p style="margin:5px 0;">氣溫：<span id="temp-val">-</span> °C</p>
+                <h4 style="margin:0;">選擇地區天氣趨勢</h4>
+                <p>天氣：<span id="wx-val">讀取中...</span></p>
+                <p>降雨機率：<span id="pop-val">-</span>%</p>
+                <p>氣溫：<span id="temp-val">-</span> °C</p>
             </div>
-            <div id="disaster-content" style="margin-bottom:15px;">正在讀取警報資料...</div>
-            <button id="close-btn" style="width:100%; padding:10px; background:#39ff14; color:black; border:none; font-weight:bold; cursor:pointer;">關閉儀表板</button>
+            <div id="disaster-content">載入中...</div>
+            <button id="close-btn" style="width:100%; padding:10px; background:#39ff14; cursor:pointer;">關閉</button>
         </div>`;
     
     document.body.appendChild(modal);
     document.getElementById('close-btn').onclick = () => modal.remove();
+// 綁定選單事件
+    document.getElementById('city-select').onchange = function(e) {
+        const selectedCity = e.target.value;
+        // 重新呼叫一次 API 或直接篩選已快取的資料
+        fetchWeatherData(selectedCity); 
+    };
 
+    // 將原本的 fetch 邏輯封裝成一個函式方便重用
+    function fetchWeatherData(cityName) {
+        const API_KEY = '您的真實API授權碼';
+        fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${API_KEY}`)
+            .then(res => res.json())
+            .then(data => {
+                const loc = data.records.location.find(l => l.locationName === cityName);
+                if (loc) {
+                    const el = loc.weatherElement;
+                    document.getElementById('wx-val').innerText = el.find(e => e.elementName === 'Wx').time[0].parameter.parameterName;
+                    document.getElementById('pop-val').innerText = el.find(e => e.elementName === 'PoP').time[0].parameter.parameterName;
+                    const minT = el.find(e => e.elementName === 'MinT').time[0].parameter.parameterName;
+                    const maxT = el.find(e => e.elementName === 'MaxT').time[0].parameter.parameterName;
+                    document.getElementById('temp-val').innerText = `${minT} - ${maxT}`;
+                }
+            });
+    }
+
+    // 初始載入桃園
+    fetchWeatherData('桃園市');
     // 2. 獲取天氣資料 (F-C0032-001)
     const API_KEY = 'CWA-2E7EC676-1235-48FF-906B-EAB529F3B533'; 
     fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${API_KEY}`)
