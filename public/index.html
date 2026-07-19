@@ -839,7 +839,7 @@
             });
 
 socket.on('new_chat_message', function(data) {
-    // 後端傳過來的資料結構是 { name, text, time }
+    // 這裡我們直接取用 data.name，這必須由你的 server.js 傳遞過來
     appendChatMessage(data.name, data.text, data.time);
 
     const chatPanel = document.getElementById('chat-panel');
@@ -899,20 +899,19 @@ socket.on('new_chat_message', function(data) {
             });
         }
 
-        function renderOnlineUsers() {
-            const listEl = document.getElementById('users-list');
-            listEl.innerHTML = '';
-            if (onlineUsersList.length === 0) {
-                listEl.innerHTML = '<li style="color:#718096; padding:4px;">無在線用戶記錄</li>';
-                return;
-            }
-            onlineUsersList.forEach(name => {
-                const li = document.createElement('li');
-                li.className = 'user-item';
-                li.innerText = name;
-                listEl.appendChild(li);
-            });
-        }
+function renderOnlineUsers() {
+    const listEl = document.getElementById('users-list');
+    if (!listEl) return;
+    listEl.innerHTML = ''; // 清空原本的列表
+    
+    onlineUsersList.forEach(user => {
+        const li = document.createElement('li');
+        li.className = 'user-item';
+        // 關鍵在這裡：只取 .name 屬性
+        li.innerText = user.name; 
+        listEl.appendChild(li);
+    });
+}
 
         function toggleUsersPanel() {
             const panel = document.getElementById('users-panel');
