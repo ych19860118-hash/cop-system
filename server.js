@@ -10,29 +10,26 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/leaflet', express.static(path.join(__dirname, 'node_modules', 'leaflet', 'dist')));
 
-// --- 新增：地震資料獲取功能 ---
-async function fetchEarthquakeData() {
+// --- 共用 API Key 驗證 ---
+const getApiKey = () => process.env.CWA_API_KEY;
+
+// --- 1. 地震資料 ---
+app.get('/api/earthquake/data', async (req, res) => {
+    const CWA_KEY = getApiKey();
+    if (!CWA_KEY) return res.status(500).json({ error: "未設定 API Key" });
     try {
-        const CWA_KEY = process.env.CWA_API_KEY; 
-        if (!CWA_KEY) return [];
         const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0016-001?Authorization=${CWA_KEY}`;
         const response = await axios.get(url, { timeout: 5000 });
-        return response.data.records.Earthquake || [];
+        res.json(response.data.records.Earthquake || []);
     } catch (error) {
-        console.error("抓取地震失敗:", error.message);
-        return [];
+        res.status(502).json({ error: "無法取得地震資料" });
     }
-}
-
-app.get('/api/earthquake/data', async (req, res) => {
-    const data = await fetchEarthquakeData();
-    res.json(data);
 });
-// --- 地震功能結束 ---
 
+// --- 2. 即時氣象觀測 ---
 app.get('/api/weather/data', async (req, res) => {
-    const CWA_KEY = process.env.CWA_API_KEY;
-    if (!CWA_KEY) return res.status(500).json({ error: "伺服器未設定 API Key" });
+    const CWA_KEY = getApiKey();
+    if (!CWA_KEY) return res.status(500).json({ error: "未設定 API Key" });
     try {
         const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001?Authorization=${CWA_KEY}&format=JSON`;
         const response = await axios.get(url, { timeout: 5000 });
@@ -42,12 +39,25 @@ app.get('/api/weather/data', async (req, res) => {
     }
 });
 
+// --- 3. 新增：縣市天氣預報 (F-C0032-001) ---
+app.get('/api/weather/forecast', async (req, res) => {
+    const CWA_KEY = getApiKey();
+    if (!CWA_KEY) return res.status(500).json({ error: "未設定 API Key" });
+    try {
+        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${CWA_KEY}`;
+        const response = await axios.get(url, { timeout: 5000 });
+        res.json(response.data);
+    } catch (error) {
+        console.error("預報 API 錯誤:", error.message);
+        res.status(502).json({ error: "無法取得預報資料" });
+    }
+});
+
+// --- 頻道與 Socket 邏輯 (維持不變) ---
 let rooms = {
     "公開頻道(風災)": { password: "", objects: [], events: [], chatHistory: [] }, 
     "公開頻道(震災)": { password: "", objects: [], events: [], chatHistory: [] }
 };
-let chatHistoryBackups = {}; 
-let roomTimers = {}; 
 const ADMIN_SECRET = "adminyu"; 
 
 app.post('/api/login', async (req, res) => {
@@ -66,19 +76,21 @@ app.post('/api/login', async (req, res) => {
     } else if (rooms[rName].password !== "" && rooms[rName].password !== roomPassword) {
         return res.json({ success: false, message: "密碼錯誤" });
     }
-
     res.json({ success: true, username: uName, roomName: rName });
 });
 
 io.on('connection', (socket) => {
     socket.on('join_room', (data) => {
         socket.join(data.roomName);
-        socket.myName = data.username;
+        socket.myRoom = data.roomName;
         socket.emit('history_objects', rooms[data.roomName]?.objects || []);
     });
-    
-    // 其他原有的邏輯保持不變...
-    socket.on('new_object', (objData) => { if (rooms[socket.myRoom]) { rooms[socket.myRoom].objects.push(objData); io.to(socket.myRoom).emit('object_added', objData); }});
+    socket.on('new_object', (objData) => { 
+        if (rooms[socket.myRoom]) { 
+            rooms[socket.myRoom].objects.push(objData); 
+            io.to(socket.myRoom).emit('object_added', objData); 
+        }
+    });
 });
 
 const PORT = process.env.PORT || 3000;
