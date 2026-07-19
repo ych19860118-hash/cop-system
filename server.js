@@ -10,8 +10,9 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/leaflet', express.static(path.join(__dirname, 'node_modules', 'leaflet', 'dist')));
 
-// --- API 設定 ---
-const getApiKey = () => process.env.CWA_API_KEY || 'CWA-2E7EC676-1235-48FF-906B-EAB529F3B533';
+// --- API 快取設定 ---
+let weatherCache = { data: null, lastFetch: 0 };
+const CACHE_DURATION = 300000; // 5 分鐘 (毫秒)
 
 // --- API Endpoints ---
 app.get('/api/earthquake/data', async (req, res) => {
@@ -23,11 +24,24 @@ app.get('/api/earthquake/data', async (req, res) => {
 });
 
 app.get('/api/weather/data', async (req, res) => {
+    // 1. 檢查是否有快取且未過期
+    if (weatherCache.data && (Date.now() - weatherCache.lastFetch < CACHE_DURATION)) {
+        return res.json(weatherCache.data);
+    }
+
     try {
+        // 2. 若無快取或已過期，則重新呼叫 API
         const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001?Authorization=${getApiKey()}&format=JSON`;
         const response = await axios.get(url, { timeout: 5000 });
+        
+        // 3. 將新資料寫入快取
+        weatherCache.data = response.data;
+        weatherCache.lastFetch = Date.now();
+        
         res.json(response.data);
-    } catch (error) { res.status(502).json({ error: "無法取得氣象資料" }); }
+    } catch (error) { 
+        res.status(502).json({ error: "無法取得氣象資料" }); 
+    }
 });
 
 app.get('/api/weather/forecast', async (req, res) => {
@@ -37,7 +51,6 @@ app.get('/api/weather/forecast', async (req, res) => {
         res.json(response.data);
     } catch (error) { res.status(502).json({ error: "無法取得預報資料" }); }
 });
-
 // --- 頻道與 Socket 邏輯 ---
 let rooms = {
     "公開頻道(訪客)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() }, 
@@ -89,13 +102,18 @@ io.on('connection', (socket) => {
         socket.emit('history_objects', rooms[data.roomName].objects);
     });
 
-    socket.on('delete_object', (objId) => {
-        if (rooms[socket.myRoom]) {
-            rooms[socket.myRoom].objects = rooms[socket.myRoom].objects.filter(o => o.id !== objId);
-            rooms[socket.myRoom].lastActive = Date.now();
+socket.on('delete_object', (objId) => {
+    const room = rooms[socket.myRoom];
+    if (room) {
+        // 檢查該物件是否真的存在於該房間
+        const index = room.objects.findIndex(o => o.id === objId);
+        if (index !== -1) {
+            room.objects.splice(index, 1);
+            room.lastActive = Date.now();
             io.to(socket.myRoom).emit('object_removed', objId);
         }
-    });
+    }
+});
 
     socket.on('send_chat', (msg) => {
         const chatData = { name: socket.myName, text: msg, time: new Date().toLocaleTimeString() };
