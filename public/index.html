@@ -1794,6 +1794,27 @@ function getCityWeather(data, cityName) {
         maxT: elements.find(e => e.elementName === 'MaxT').time[0].parameter.parameterName
     };
 }
+        const socket = io(); // 假設你這邊有初始化
+    const map = L.map('map'); // 假設你這邊有初始化地圖
+
+    // --- 你要加入的程式碼 ---
+    const otherUsersMarkers = {}; 
+
+    socket.on('user_moved', (data) => {
+        if (otherUsersMarkers[data.id]) {
+            otherUsersMarkers[data.id].setLatLng([data.lat, data.lng]);
+        } else {
+            otherUsersMarkers[data.id] = L.marker([data.lat, data.lng]).addTo(map)
+                .bindPopup(data.name + " 的位置");
+        }
+    });
+
+    socket.on('user_disconnected', (userId) => {
+        if (otherUsersMarkers[userId]) {
+            map.removeLayer(otherUsersMarkers[userId]);
+            delete otherUsersMarkers[userId];
+        }
+    });
     </script>
     <div id="disaster-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; justify-content:center; align-items:center;">
     <div style="background:#1a1d21; color:#fff; padding:20px; border-radius:10px; width:90%; max-width:500px; max-height:80vh; overflow-y:auto; border:1px solid #39ff14;">
