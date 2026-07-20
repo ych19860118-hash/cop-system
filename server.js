@@ -23,6 +23,7 @@ let rooms = {
 };
 
 // --- 自動清理機制 (每 15 分鐘檢查一次) ---
+// 非公開頻道在 8 小時閒置且無人時會被自動刪除
 setInterval(() => {
     const EIGHT_HOURS = 8 * 60 * 60 * 1000;
     const now = Date.now();
@@ -90,10 +91,9 @@ io.on('connection', (socket) => {
         socket.emit('history_objects', rooms[data.roomName].objects);
     });
 
-    // --- 新增：接收並廣播使用者的位置 ---
+    // 即時位置廣播
     socket.on('update_location', (data) => {
         if (socket.myRoom) {
-            // 廣播給同房內所有人，包含發送者的 ID、名字與座標
             socket.to(socket.myRoom).emit('user_moved', {
                 id: socket.id,
                 name: socket.myName,
@@ -132,7 +132,6 @@ io.on('connection', (socket) => {
             rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u.id !== socket.id);
             io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
             io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
-            // 通知前端移除該使用者的 Marker
             io.to(socket.myRoom).emit('user_disconnected', socket.id);
         }
     });
