@@ -22,6 +22,23 @@ let rooms = {
     "公開頻道(風災)無須密碼": { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() }
 };
 
+// --- 自動清理機制 (每 15 分鐘檢查一次) ---
+setInterval(() => {
+    const EIGHT_HOURS = 8 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    for (const roomName in rooms) {
+        // 公開頻道不參與自動刪除
+        if (roomName.includes("公開頻道")) continue;
+
+        // 若超過 8 小時未活動且當前無人，則刪除
+        if (now - rooms[roomName].lastActive > EIGHT_HOURS && rooms[roomName].userList.length === 0) {
+            delete rooms[roomName];
+            console.log(`[系統清理] 已刪除閒置頻道: ${roomName}`);
+        }
+    }
+}, 15 * 60 * 1000);
+
 // --- API Endpoints ---
 app.get('/api/earthquake/data', async (req, res) => {
     try {
@@ -65,11 +82,12 @@ io.on('connection', (socket) => {
         
         rooms[data.roomName].userList.push({ id: socket.id, name: data.username });
         rooms[data.roomName].lastActive = Date.now();
-io.to(data.roomName).emit('new_chat_message', {
-        name: "系統通知",
-        text: `【${data.username}】已加入房間`,
-        time: getFormattedTime()
-    });
+        
+        io.to(data.roomName).emit('new_chat_message', {
+            name: "系統通知",
+            text: `【${data.username}】已加入房間`,
+            time: getFormattedTime()
+        });
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         socket.emit('history_objects', rooms[data.roomName].objects);
@@ -77,6 +95,8 @@ io.to(data.roomName).emit('new_chat_message', {
 
     socket.on('send_chat', (msg) => {
         if (!socket.myRoom || !rooms[socket.myRoom]) return;
+        rooms[socket.myRoom].lastActive = Date.now(); // 更新活躍時間
+        
         const chatData = { name: socket.myName, text: msg, time: getFormattedTime() };
         rooms[socket.myRoom].chatHistory.push(chatData);
         io.to(socket.myRoom).emit('new_chat_message', chatData);
@@ -84,6 +104,7 @@ io.to(data.roomName).emit('new_chat_message', {
 
     socket.on('new_object', (objData) => { 
         if (socket.myRoom && rooms[socket.myRoom]) { 
+            rooms[socket.myRoom].lastActive = Date.now(); // 更新活躍時間
             rooms[socket.myRoom].objects.push(objData); 
             io.to(socket.myRoom).emit('object_added', objData); 
         }
@@ -91,6 +112,7 @@ io.to(data.roomName).emit('new_chat_message', {
 
     socket.on('delete_object', (objId) => {
         if (socket.myRoom && rooms[socket.myRoom]) {
+            rooms[socket.myRoom].lastActive = Date.now(); // 更新活躍時間
             rooms[socket.myRoom].objects = rooms[socket.myRoom].objects.filter(o => o.id !== objId);
             io.to(socket.myRoom).emit('object_removed', objId);
         }
