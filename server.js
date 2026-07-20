@@ -28,10 +28,7 @@ setInterval(() => {
     const now = Date.now();
 
     for (const roomName in rooms) {
-        // 公開頻道不參與自動刪除
         if (roomName.includes("公開頻道")) continue;
-
-        // 若超過 8 小時未活動且當前無人，則刪除
         if (now - rooms[roomName].lastActive > EIGHT_HOURS && rooms[roomName].userList.length === 0) {
             delete rooms[roomName];
             console.log(`[系統清理] 已刪除閒置頻道: ${roomName}`);
@@ -93,10 +90,21 @@ io.on('connection', (socket) => {
         socket.emit('history_objects', rooms[data.roomName].objects);
     });
 
+    // --- 新增：即時位置共享廣播 ---
+    socket.on('update_location', (data) => {
+        if (socket.myRoom) {
+            socket.to(socket.myRoom).emit('user_moved', {
+                id: socket.id,
+                name: socket.myName,
+                lat: data.lat,
+                lng: data.lng
+            });
+        }
+    });
+
     socket.on('send_chat', (msg) => {
         if (!socket.myRoom || !rooms[socket.myRoom]) return;
-        rooms[socket.myRoom].lastActive = Date.now(); // 更新活躍時間
-        
+        rooms[socket.myRoom].lastActive = Date.now();
         const chatData = { name: socket.myName, text: msg, time: getFormattedTime() };
         rooms[socket.myRoom].chatHistory.push(chatData);
         io.to(socket.myRoom).emit('new_chat_message', chatData);
@@ -104,7 +112,7 @@ io.on('connection', (socket) => {
 
     socket.on('new_object', (objData) => { 
         if (socket.myRoom && rooms[socket.myRoom]) { 
-            rooms[socket.myRoom].lastActive = Date.now(); // 更新活躍時間
+            rooms[socket.myRoom].lastActive = Date.now();
             rooms[socket.myRoom].objects.push(objData); 
             io.to(socket.myRoom).emit('object_added', objData); 
         }
@@ -112,7 +120,7 @@ io.on('connection', (socket) => {
 
     socket.on('delete_object', (objId) => {
         if (socket.myRoom && rooms[socket.myRoom]) {
-            rooms[socket.myRoom].lastActive = Date.now(); // 更新活躍時間
+            rooms[socket.myRoom].lastActive = Date.now();
             rooms[socket.myRoom].objects = rooms[socket.myRoom].objects.filter(o => o.id !== objId);
             io.to(socket.myRoom).emit('object_removed', objId);
         }
