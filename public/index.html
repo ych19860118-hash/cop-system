@@ -466,7 +466,7 @@
     
     <div id="toast-container"></div>
     <div id="map"></div>
-
+<script>
    // 第一部分：變數宣告與基礎地圖初始化
 const SERVER_URL = window.location.origin; 
 let socket, currentUser = "", currentRoom = "", map, allMapLayers = {};
@@ -573,7 +573,7 @@ function myNewFunction() {
             document.getElementById('disaster-content').innerText = data.records.MsgSource || "目前無發布重大災害警報。";
         });
 }
-
+</script>
 // 確保執行 initSocketAndLayers 於登入成功後
     
     <div id="disaster-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; justify-content:center; align-items:center;">
