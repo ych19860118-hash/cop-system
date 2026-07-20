@@ -90,9 +90,10 @@ io.on('connection', (socket) => {
         socket.emit('history_objects', rooms[data.roomName].objects);
     });
 
-    // --- 新增：即時位置共享廣播 ---
+    // --- 新增：接收並廣播使用者的位置 ---
     socket.on('update_location', (data) => {
         if (socket.myRoom) {
+            // 廣播給同房內所有人，包含發送者的 ID、名字與座標
             socket.to(socket.myRoom).emit('user_moved', {
                 id: socket.id,
                 name: socket.myName,
@@ -131,6 +132,8 @@ io.on('connection', (socket) => {
             rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u.id !== socket.id);
             io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
             io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
+            // 通知前端移除該使用者的 Marker
+            io.to(socket.myRoom).emit('user_disconnected', socket.id);
         }
     });
 });
