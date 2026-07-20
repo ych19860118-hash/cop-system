@@ -813,91 +813,96 @@
             } catch (err) { document.getElementById('login-error').innerText = "連線後端錯誤！"; }
         }
 
-        function initSocketAndLayers() {
-            socket = io(SERVER_URL);
-            socket.emit('join_room', { roomName: currentRoom, username: currentUser });
-            socket.on('history_objects', function(objects) { if (Array.isArray(objects)) objects.forEach(obj => renderObjectOnMap(obj)); });
-            socket.on('history_events', function(events) { if (Array.isArray(events)) events.forEach(evt => renderEventOnMap(evt)); }); 
-            socket.on('history_chats', function(chats) {
-                if (Array.isArray(chats)) {
-                    document.getElementById('chat-messages').innerHTML = '';
-                    chats.forEach(chat => {
-                        appendChatMessage(chat.sender, chat.message, chat.time);
-                    });
-                }
-            });
-            socket.on('update_user_count', function(count) { document.getElementById('state-count').innerText = count; });
-            
-            socket.on('update_user_list', (users) => {
-                onlineUsersList = Array.isArray(users) ? users : [];
-                renderOnlineUsers();
-            });
+// 記得在全域變數區宣告：let otherUsersMarkers = {};
 
-            socket.on('user_notification', function(data) {
-                const actionText = data.action === 'joined' ? '進入' : '離開';
-                showToast(`[系統通知] ${data.name} 已經${actionText}頻道`);
-            });
+function initSocketAndLayers() {
+    socket = io(SERVER_URL);
+    socket.emit('join_room', { roomName: currentRoom, username: currentUser });
 
-socket.on('new_chat_message', function(data) {
-    // 這裡我們直接取用 data.name，這必須由你的 server.js 傳遞過來
-    appendChatMessage(data.name, data.text, data.time);
-
-    const chatPanel = document.getElementById('chat-panel');
-    const isHidden = (window.getComputedStyle(chatPanel).display === 'none');
-    if (isHidden) {
-        const badge = document.getElementById('chat-badge');
-        if (badge) badge.style.display = 'block';
-    }
-});
-            socket.on('event_added', function(evtData) {
-                renderEventOnMap(evtData);
-                showToast(`🚨 [${evtData.category}] ${evtData.sender} 剛剛回報了新狀況！`);
-            });
-
-            socket.on('event_deleted', function(eventId) {
-                if (allEventLayers[eventId]) {
-                    map.removeLayer(allEventLayers[eventId].layer);
-                    delete allEventLayers[eventId];
-                }
-                showToast("🗑️ 事件回報已被移除");
-            });
-
-            let peerGPSMarkers = {}; 
-            socket.on('peer_gps_updated', function(gpsData) {
-                const pName = gpsData.username, pLatLng = L.latLng(gpsData.lat, gpsData.lng);
-                if (peerGPSMarkers[pName]) map.removeLayer(peerGPSMarkers[pName]);
-                const peerCenterDot = L.circle(pLatLng, { radius: gpsData.isApprox ? 250 : 10, color: '#39ff14', fillColor: '#39ff14', fillOpacity: 0.8, weight: 1 })
-                    .bindTooltip(pName + (gpsData.isApprox ? ' (概略)' : ''), { permanent: true, direction: 'top', className: 'tactical-tooltip', interactive: false });
-                const peerAccuracyCircle = L.circle(pLatLng, { radius: gpsData.accuracy, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 0.1, weight: 1 });
-                peerGPSMarkers[pName] = L.layerGroup([peerCenterDot, peerAccuracyCircle]).addTo(map);
-            });
-
-            socket.on('object_added', data => renderObjectOnMap(data));
-  socket.on('object_removed', id => {
-    if (allMapLayers[id]) {
-        map.removeLayer(allMapLayers[id].layer);
-        if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
-        if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
-        if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
-        delete allMapLayers[id];
-    }
-});
-            
-            socket.on('clear_all_objects', () => {
-                Object.keys(allMapLayers).forEach(id => {
-                    map.removeLayer(allMapLayers[id].layer);
-                    if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
-                    if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
-                    if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
-                });
-                Object.keys(allEventLayers).forEach(id => {
-                    map.removeLayer(allEventLayers[id].layer);
-                });
-                allMapLayers = {};
-                allEventLayers = {};
-                showToast("⚠️ [安全公告] 系統最高權限指揮官已清空所有地圖圖資與事件！");
-            });
+    // --- 1. 歷史資料與基礎狀態 ---
+    socket.on('history_objects', (objs) => { if (Array.isArray(objs)) objs.forEach(obj => renderObjectOnMap(obj)); });
+    socket.on('history_events', (evts) => { if (Array.isArray(evts)) evts.forEach(evt => renderEventOnMap(evt)); });
+    socket.on('history_chats', (chats) => {
+        if (Array.isArray(chats)) {
+            document.getElementById('chat-messages').innerHTML = '';
+            chats.forEach(c => appendChatMessage(c.sender, c.message, c.time));
         }
+    });
+
+    socket.on('update_user_count', (count) => { document.getElementById('state-count').innerText = count; });
+    socket.on('update_user_list', (users) => {
+        onlineUsersList = Array.isArray(users) ? users : [];
+        renderOnlineUsers();
+    });
+
+    // --- 2. 通訊與通知 ---
+    socket.on('user_notification', (data) => {
+        showToast(`[系統通知] ${data.name} 已經${data.action === 'joined' ? '進入' : '離開'}頻道`);
+    });
+
+    socket.on('new_chat_message', (data) => {
+        appendChatMessage(data.name, data.text, data.time);
+        const chatPanel = document.getElementById('chat-panel');
+        if (window.getComputedStyle(chatPanel).display === 'none') {
+            const badge = document.getElementById('chat-badge');
+            if (badge) badge.style.display = 'block';
+        }
+    });
+
+    // --- 3. 即時位置追蹤 (新功能) ---
+    socket.on('user_moved', (data) => {
+        if (otherUsersMarkers[data.id]) {
+            otherUsersMarkers[data.id].setLatLng([data.lat, data.lng]);
+        } else {
+            otherUsersMarkers[data.id] = L.marker([data.lat, data.lng]).addTo(map)
+                .bindPopup(`${data.name} 的位置`);
+        }
+    });
+
+    socket.on('user_disconnected', (userId) => {
+        if (otherUsersMarkers[userId]) {
+            map.removeLayer(otherUsersMarkers[userId]);
+            delete otherUsersMarkers[userId];
+        }
+    });
+
+    // --- 4. 舊有 GPS 兼容 (peer_gps_updated) ---
+    let peerGPSMarkers = {};
+    socket.on('peer_gps_updated', (gpsData) => {
+        const pLatLng = L.latLng(gpsData.lat, gpsData.lng);
+        if (peerGPSMarkers[gpsData.username]) map.removeLayer(peerGPSMarkers[gpsData.username]);
+        
+        const dot = L.circle(pLatLng, { radius: gpsData.isApprox ? 250 : 10, color: '#39ff14', fillColor: '#39ff14', fillOpacity: 0.8 }).bindTooltip(gpsData.username);
+        const acc = L.circle(pLatLng, { radius: gpsData.accuracy, color: '#22c55e', fillOpacity: 0.1 });
+        peerGPSMarkers[gpsData.username] = L.layerGroup([dot, acc]).addTo(map);
+    });
+
+    // --- 5. 物件與事件管理 ---
+    socket.on('event_added', (data) => { renderEventOnMap(data); showToast(`🚨 [${data.category}] ${data.sender} 回報新狀況`); });
+    socket.on('event_deleted', (id) => { if (allEventLayers[id]) { map.removeLayer(allEventLayers[id].layer); delete allEventLayers[id]; } });
+    socket.on('object_added', (data) => renderObjectOnMap(data));
+    socket.on('object_removed', (id) => {
+        if (allMapLayers[id]) {
+            map.removeLayer(allMapLayers[id].layer);
+            if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
+            if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
+            if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
+            delete allMapLayers[id];
+        }
+    });
+
+    socket.on('clear_all_objects', () => {
+        Object.values(allMapLayers).forEach(item => {
+            map.removeLayer(item.layer);
+            if (item.pin) map.removeLayer(item.pin);
+            if (item.resizePin) map.removeLayer(item.resizePin);
+            if (item.vertexPins) item.vertexPins.forEach(vp => map.removeLayer(vp));
+        });
+        Object.values(allEventLayers).forEach(item => map.removeLayer(item.layer));
+        allMapLayers = {}; allEventLayers = {};
+        showToast("⚠️ 系統已清空所有圖資！");
+    });
+}
 
 function renderOnlineUsers() {
     const listEl = document.getElementById('users-list');
