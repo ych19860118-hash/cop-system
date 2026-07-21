@@ -1713,7 +1713,7 @@ document.getElementById('btn-earthquake').addEventListener('click', async () => 
         earthquakes.slice(0, 10).forEach(eq => {
             const info = eq.EarthquakeInfo || {};
             const time = info.OriginTime || eq.ReportTime || '時間未知';
-            const magnitude = info.Magnitude?.MagnitudeValue || 'N/A';
+            const magnitude = info.Magnitude?.MagnitudeValue || eq.EarthquakeInfo?.EarthquakeMagnitude?.MagnitudeValue || 'N/A';
             const depth = info.FocalDepth || 'N/A';
             const desc = info.ReportContent || info.Location || '詳細資訊請參閱氣象署';
 
