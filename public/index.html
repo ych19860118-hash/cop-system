@@ -1693,39 +1693,46 @@
         const modal = document.getElementById('data-modal');
         const modalTitle = document.getElementById('modal-title');
         const modalBody = document.getElementById('modal-body');
+       // 查詢最新地震資料
+document.getElementById('btn-earthquake').addEventListener('click', async () => {
+    try {
+        modalTitle.textContent = "最新地震資料 (中央氣象署)";
+        modalBody.innerHTML = "資料載入中...";
+        modal.style.display = 'flex';
 
-        // 查詢地震資料
-        document.getElementById('btn-earthquake').addEventListener('click', async () => {
-            try {
-                modalTitle.textContent = "最新地震資料 (中央氣象署)";
-                modalBody.innerHTML = "資料載入中...";
-                modal.style.display = 'flex';
+        const response = await fetch('/api/earthquake/data'); // 假設您的地震 API 路徑
+        const eqData = await response.json();
+        
+        // 根據氣象署常見的地震資料結構尋找清單
+        const earthquakes = eqData.records?.Earthquake || eqData.result?.results || [];
+        
+        if (earthquakes.length === 0) {
+            modalBody.innerHTML = "<p>目前無地震資料。</p>";
+            return;
+        }
 
-                const response = await fetch('/api/earthquake/data');
-                const earthquakes = await response.json();
+        let html = '<ul style="padding-left: 20px; margin: 0;">';
+        earthquakes.slice(0, 10).forEach(eq => {
+            // 👉 精準對應氣象署地震資料的常見欄位
+            const info = eq.EarthquakeInfo || {};
+            const time = info.OriginTime || eq.ReportTime || '時間未知';
+            const magnitude = info.Magnitude?.MagnitudeValue || info. भूकंप規模 || 'N/A';
+            const depth = info.FocalDepth || 'N/A';
+            const desc = eq.ReportContent || info.Location || '詳細資訊請參閱氣象署';
 
-                if (earthquakes.length === 0) {
-                    modalBody.innerHTML = "<p>目前無地震資料。</p>";
-                    return;
-                }
-
-                let html = '<ul style="padding-left: 20px; margin: 0;">';
-                earthquakes.slice(0, 10).forEach(eq => {
-                    const info = eq.ReportContent || eq.EarthquakeInfo || {};
-                    html += `<li style="margin-bottom: 10px;">
-                        <strong>${info.OriginTime || '時間未知'}</strong><br>
-                        規模：${info.EarthquakeMagnitude?.MagnitudeValue || 'N/A'} | 
-                        深度：${info.FocalDepth || 'N/A'} 公里<br>
-                        震央：${info.Epicenter?.Location || eq.ReportRemark || '詳細地點未提供'}
-                    </li>`;
-                });
-                html += '</ul>';
-                modalBody.innerHTML = html;
-            } catch (error) {
-                console.error('無法取得地震資料', error);
-                modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得地震資料，請稍後再試。</p>";
-            }
+            html += `<li style="margin-bottom: 12px;">
+                <strong>${time}</strong><br>
+                規模：${magnitude} | 深度：${depth} 公里<br>
+                <span style="font-size: 12px; color: #cbd5e0;">震央：${desc}</span>
+            </li>`;
         });
+        html += '</ul>';
+        modalBody.innerHTML = html;
+    } catch (error) {
+        console.error('無法取得地震資料', error);
+        modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得地震資料，請稍後再試。</p>";
+    }
+});
 
 // 查詢氣象資料
 document.getElementById('btn-weather').addEventListener('click', async () => {
