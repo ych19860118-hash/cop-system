@@ -355,9 +355,6 @@
             <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path><path d="M13 19l-2 3"></path><path d="M9 19l-2 3"></path><path d="M17 19l-2 3"></path></svg>
             </button>
-            <button id="weather-layer-btn" title="切換氣象圖層" class="tool-btn">
-                ☔
-            </button>
         </div>
     </div>
     <!-- 搜尋輸入對話框 -->
@@ -1661,6 +1658,42 @@
                     });
             });
         }
+
+        function createLayerToggleButton(mapInstance) {
+            const toggleControl = L.control({ position: 'topleft' });
+
+            toggleControl.onAdd = function() {
+                const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control tactical-layer-control');
+                div.style.marginLeft = '65px';  
+                div.style.marginTop = '12px';   
+
+                const a = L.DomUtil.create('a', '', div);
+                a.href = '#';
+                a.innerHTML = '☔';
+                
+                L.DomEvent.disableClickPropagation(div);
+                L.DomEvent.on(a, 'click', function(e) {
+                    L.DomEvent.preventDefault(e);
+                    L.DomEvent.stopPropagation(e);
+                    if (isRadarVisible) {
+                        mapInstance.removeLayer(radarLayer);
+                        a.style.background = '#1a1d21';
+                    } else {
+                        mapInstance.addLayer(radarLayer);
+                        a.style.background = '#22c55e';
+                    }
+                    isRadarVisible = !isRadarVisible;
+                });
+
+                return div;
+            };
+
+            toggleControl.addTo(mapInstance);
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('data-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
 // 查詢最新地震資料
 document.getElementById('btn-earthquake').addEventListener('click', async () => {
     try {
@@ -1744,28 +1777,10 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
         modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得氣象資料，請稍後再試。</p>";
     }
 });
+});
     function closeDataModal() {
         document.getElementById('data-modal').style.display = 'none';
     }
-   document.addEventListener('DOMContentLoaded', () => {
-        const weatherLayerBtn = document.getElementById('weather-layer-btn');
-        if (weatherLayerBtn) {
-            weatherLayerBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (isRadarVisible) {
-                    map.removeLayer(radarLayer);
-                    weatherLayerBtn.style.background = 'transparent';
-                } else {
-                    map.addLayer(radarLayer);
-                    weatherLayerBtn.style.background = '#22c55e';
-                }
-                isRadarVisible = !isRadarVisible;
-                 }
-            });
-        }
-    });
-       }); 
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
     <div style="padding:15px; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
