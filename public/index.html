@@ -1745,18 +1745,18 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
 
         let html = '<ul style="padding-left: 20px; margin: 0;">';
         stations.slice(0, 15).forEach(st => {
-            const elements = st.WeatherElement || {};
-            
-            // 👉 精準解析氣象署 AirTemperature 的巢狀數值結構
+            // 👉 中央氣象署的 WeatherElement 通常是陣列結構
+            const elements = st.WeatherElement || [];
             let temp = 'N/A';
-            const airTemp = elements.AirTemperature;
             
-            if (airTemp !== undefined && airTemp !== null) {
-                if (typeof airTemp === 'object') {
-                    temp = airTemp.WeatherElementValue?.WeatherElementValue ?? airTemp.Value ?? 'N/A';
-                } else {
-                    temp = airTemp;
+            if (Array.isArray(elements)) {
+                // 從陣列中尋找氣象要素名稱為 AirTemperature (氣溫) 的項目
+                const tempElement = elements.find(e => e.ElementName === 'AirTemperature' || e.ElementName === 'TEMP');
+                if (tempElement) {
+                    temp = tempElement.ElementValue ?? tempElement.AirTemperature ?? 'N/A';
                 }
+            } else if (typeof elements === 'object') {
+                temp = elements.AirTemperature ?? elements.TEMP ?? 'N/A';
             }
 
             html += `<li style="margin-bottom: 8px;">
