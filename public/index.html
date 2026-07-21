@@ -369,6 +369,15 @@
             <button class="btn-cancel-evt" onclick="closeGPSModal()" style="margin-top: 5px;">取消</button>
         </div>
     </div>
+    <div class="sidebar-tool-group" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
+        <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
+            <i class="fas fa-house-chimney-crack"></i>
+        </button>
+        <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
+            <i class="fas fa-cloud-sun-rain"></i>
+        </button>
+    </div>
+</div>
 
     <!-- 即時事件通報對話框 -->
     <div id="event-modal">
@@ -439,16 +448,6 @@
             </ul>
         </div>
     </div>
-<!-- 👉 把 HTML 按鈕放在這裡（工具列容器內） -->
-<div class="sidebar-tool-group" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
-        <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
-            <i class="fas fa-house-chimney-crack"></i>
-        </button>
-        <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
-            <i class="fas fa-cloud-sun-rain"></i>
-        </button>
-    </div>
-</div>
     <!-- 聊天室面板 -->
     <div id="chat-panel">
         <div id="chat-header">
@@ -1728,38 +1727,45 @@
             }
         });
 
-        // 查詢氣象資料
-        document.getElementById('btn-weather').addEventListener('click', async () => {
-            try {
-                modalTitle.textContent = "即時氣象站資料 (中央氣象署)";
-                modalBody.innerHTML = "資料載入中...";
-                modal.style.display = 'flex';
+// 查詢氣象資料
+document.getElementById('btn-weather').addEventListener('click', async () => {
+    try {
+        modalTitle.textContent = "即時氣象站資料 (中央氣象署)";
+        modalBody.innerHTML = "資料載入中...";
+        modal.style.display = 'flex';
 
-                const response = await fetch('/api/weather/data');
-                const weatherData = await response.json();
-                
-                const stations = weatherData.records?.Station || [];
-                if (stations.length === 0) {
-                    modalBody.innerHTML = "<p>目前無氣象資料。</p>";
-                    return;
-                }
+        const response = await fetch('/api/weather/data');
+        const weatherData = await response.json();
+        
+        const stations = weatherData.records?.Station || [];
+        if (stations.length === 0) {
+            modalBody.innerHTML = "<p>目前無氣象資料。</p>";
+            return;
+        }
 
-                let html = '<ul style="padding-left: 20px; margin: 0;">';
-                stations.slice(0, 15).forEach(st => {
-                    const temp = st.WeatherElement?.AirTemperature ?? 'N/A';
-                    html += `<li style="margin-bottom: 8px;">
-                        <strong>${st.StationName} (${st.StationId})</strong> - 
-                        氣溫：${temp}°C
-                    </li>`;
-                });
-                html += '</ul>';
-                modalBody.innerHTML = html;
-            } catch (error) {
-                console.error('無法取得氣象資料', error);
-                modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得氣象資料，請稍後再試。</p>";
+        let html = '<ul style="padding-left: 20px; margin: 0;">';
+        stations.slice(0, 15).forEach(st => {
+            const elements = st.WeatherElement || {};
+            // 👉 完整相容氣象署常見的氣溫欄位格式
+            let temp = elements.AirTemperature ?? elements.TEMP ?? 'N/A';
+            
+            // 如果取出來的是物件，嘗試進一步讀取裡面的數值屬性
+            if (typeof temp === 'object' && temp !== null) {
+                temp = temp.AirTemperature || temp.Value || 'N/A';
             }
+
+            html += `<li style="margin-bottom: 8px;">
+                <strong>${st.StationName} (${st.StationId})</strong> - 
+                氣溫：${temp}°C
+            </li>`;
         });
-    });
+        html += '</ul>';
+        modalBody.innerHTML = html;
+    } catch (error) {
+        console.error('無法取得氣象資料', error);
+        modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得氣象資料，請稍後再試。</p>";
+    }
+});
 
     function closeDataModal() {
         document.getElementById('data-modal').style.display = 'none';
