@@ -1749,6 +1749,7 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
         const response = await fetch('/api/weather/data');
         const weatherData = await response.json();
         
+        // 自動氣象站的陣列通常放在 records.Station
         const stations = weatherData.records?.Station || [];
         if (stations.length === 0) {
             modalBody.innerHTML = "<p>目前無氣象資料。</p>";
@@ -1760,19 +1761,12 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
             const elements = st.WeatherElement || [];
             let temp = 'N/A';
             
-            // 從陣列中尋找 ElementName 為 AirTemperature 的氣象要素
             if (Array.isArray(elements)) {
-                const tempItem = elements.find(e => e.ElementName === 'AirTemperature' || e.ElementName === 'TEMP');
+                // 氣象站的氣溫欄位名稱為 AirTemperature
+                const tempItem = elements.find(e => e.ElementName === 'AirTemperature');
                 if (tempItem) {
-                    const valObj = tempItem.WeatherElementValue;
-                    if (typeof valObj === 'object' && valObj !== null) {
-                        temp = valObj.WeatherElementValue ?? valObj.Value ?? 'N/A';
-                    } else {
-                        temp = valObj ?? tempItem.ElementValue ?? 'N/A';
-                    }
+                    temp = tempItem.AirTemperature ?? tempItem.ElementValue ?? 'N/A';
                 }
-            } else if (typeof elements === 'object') {
-                temp = elements.AirTemperature?.WeatherElementValue ?? elements.AirTemperature ?? 'N/A';
             }
 
             html += `<li style="margin-bottom: 8px;">
