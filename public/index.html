@@ -346,6 +346,14 @@
         <button class="tool-btn" id="btn-search" onclick="openSearchModal()" title="地址或座標搜尋定位" style="color: #39ff14;">
             🔍
         </button>
+        <div class="sidebar-tool-group" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; width: 100%;">
+            <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
+                <i class="fas fa-house-chimney-crack"></i>
+            </button>
+            <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
+                <i class="fas fa-cloud-sun-rain"></i>
+            </button>
+        </div>
     </div>
 
     <!-- 搜尋輸入對話框 -->
@@ -369,15 +377,7 @@
             <button class="btn-cancel-evt" onclick="closeGPSModal()" style="margin-top: 5px;">取消</button>
         </div>
     </div>
-    <div class="sidebar-tool-group" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
-        <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
-            <i class="fas fa-house-chimney-crack"></i>
-        </button>
-        <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
-            <i class="fas fa-cloud-sun-rain"></i>
-        </button>
-    </div>
-</div>
+
 
     <!-- 即時事件通報對話框 -->
     <div id="event-modal">
@@ -1746,12 +1746,17 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
         let html = '<ul style="padding-left: 20px; margin: 0;">';
         stations.slice(0, 15).forEach(st => {
             const elements = st.WeatherElement || {};
-            // 👉 完整相容氣象署常見的氣溫欄位格式
-            let temp = elements.AirTemperature ?? elements.TEMP ?? 'N/A';
             
-            // 如果取出來的是物件，嘗試進一步讀取裡面的數值屬性
-            if (typeof temp === 'object' && temp !== null) {
-                temp = temp.AirTemperature || temp.Value || 'N/A';
+            // 👉 精準解析氣象署 AirTemperature 的巢狀數值結構
+            let temp = 'N/A';
+            const airTemp = elements.AirTemperature;
+            
+            if (airTemp !== undefined && airTemp !== null) {
+                if (typeof airTemp === 'object') {
+                    temp = airTemp.WeatherElementValue?.WeatherElementValue ?? airTemp.Value ?? 'N/A';
+                } else {
+                    temp = airTemp;
+                }
             }
 
             html += `<li style="margin-bottom: 8px;">
