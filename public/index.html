@@ -1693,7 +1693,6 @@
         const modal = document.getElementById('data-modal');
         const modalTitle = document.getElementById('modal-title');
         const modalBody = document.getElementById('modal-body');
-       // 查詢最新地震資料
 // 查詢最新地震資料
 document.getElementById('btn-earthquake').addEventListener('click', async () => {
     try {
@@ -1709,7 +1708,7 @@ document.getElementById('btn-earthquake').addEventListener('click', async () => 
             return;
         }
 
-let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
+        let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
         earthquakes.slice(0, 10).forEach(eq => {
             const info = eq.EarthquakeInfo || {};
             const time = info.OriginTime || eq.ReportTime || '時間未知';
@@ -1724,8 +1723,6 @@ let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
             }
 
             const depth = info.FocalDepth || '未知';
-            
-            // 簡化震央顯示：優先取 Location，若沒有則用 ReportContent
             const location = info.Location || content;
 
             html += `<li style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
@@ -1741,6 +1738,7 @@ let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
         modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得地震資料，請稍後再試。</p>";
     }
 });
+
 // 查詢氣象資料
 document.getElementById('btn-weather').addEventListener('click', async () => {
     try {
@@ -1757,16 +1755,15 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
             return;
         }
 
-        let html = '<ul style="padding-left: 20px; margin: 0;">';
+        let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
         stations.slice(0, 15).forEach(st => {
             const elements = st.WeatherElement || [];
             let temp = 'N/A';
             
-            // 尋找氣象要素中項目名稱為 AirTemperature 的物件
+            // 從陣列中尋找 ElementName 為 AirTemperature 的氣象要素
             if (Array.isArray(elements)) {
-                const tempItem = elements.find(e => e.ElementName === 'AirTemperature');
+                const tempItem = elements.find(e => e.ElementName === 'AirTemperature' || e.ElementName === 'TEMP');
                 if (tempItem) {
-                    // 兼容氣象署常見的雙層結構或直接賦值
                     const valObj = tempItem.WeatherElementValue;
                     if (typeof valObj === 'object' && valObj !== null) {
                         temp = valObj.WeatherElementValue ?? valObj.Value ?? 'N/A';
@@ -1774,6 +1771,8 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
                         temp = valObj ?? tempItem.ElementValue ?? 'N/A';
                     }
                 }
+            } else if (typeof elements === 'object') {
+                temp = elements.AirTemperature?.WeatherElementValue ?? elements.AirTemperature ?? 'N/A';
             }
 
             html += `<li style="margin-bottom: 8px;">
