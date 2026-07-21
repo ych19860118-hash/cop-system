@@ -85,10 +85,12 @@ io.on('connection', (socket) => {
             rooms[data.roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
         
-        rooms[data.roomName].userList.push({ id: socket.id, name: data.username });
+        // 方案 A 修改：直接將使用者名稱（字串）存入 userList
+        if (!rooms[data.roomName].userList.includes(data.username)) {
+            rooms[data.roomName].userList.push(data.username);
+        }
         rooms[data.roomName].lastActive = Date.now();
         
-        // 改為使用前端的 sender / message 屬性與 receive_chat 事件（讓系統通知也能走聊天框顯示，或保留你的需求）
         const joinMsg = { sender: "系統通知", message: `【${data.username}】已加入房間`, time: getFormattedTime() };
         rooms[data.roomName].chatHistory.push(joinMsg);
         io.to(data.roomName).emit('receive_chat', joinMsg);
@@ -119,11 +121,9 @@ io.on('connection', (socket) => {
         if (!socket.myRoom || !rooms[socket.myRoom]) return;
         rooms[socket.myRoom].lastActive = Date.now();
         
-        // 使用前端期待的 sender 與 message 欄位名稱
         const chatData = { sender: socket.myName, message: msg, time: getFormattedTime() };
         rooms[socket.myRoom].chatHistory.push(chatData);
         
-        // 使用前端期待的 receive_chat 事件名稱進行廣播
         io.to(socket.myRoom).emit('receive_chat', chatData);
     });
 
@@ -145,7 +145,10 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         if (socket.myRoom && rooms[socket.myRoom]) {
-            rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u.id !== socket.id);
+            // 方案 A 修改：透過斷線者的名稱（socket.myName）從陣列中過濾移除
+            if (socket.myName) {
+                rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
+            }
             io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
             io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
             io.to(socket.myRoom).emit('user_disconnected', socket.id);
