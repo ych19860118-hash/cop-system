@@ -434,10 +434,21 @@
                 <li><strong>GPS工具：</strong>可點擊選擇「精準」或「概略」模式回報目前位置。</li>
                 <li><strong>搜尋工具：</strong>可輸入地址或經緯度直接飛至該地點。</li>
                 <li><strong>雨量雷達：</strong>點擊左上角 ☔ 按鈕可疊加即時雨量/氣象雷達圖。</li>
+                <li><strong>地震工具：</strong>點擊可查詢中央氣象署最新地震資料。</li>
+                <li><strong>氣象工具：</strong>點擊可查詢即時氣象站資料。</li>
             </ul>
         </div>
     </div>
-
+<!-- 👉 把 HTML 按鈕放在這裡（工具列容器內） -->
+        <div class="sidebar-tool-group">
+            <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
+                <i class="fas fa-house-chimney-crack"></i>
+            </button>
+            <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
+                <i class="fas fa-cloud-sun-rain"></i>
+            </button>
+        </div>
+    </div>
     <!-- 聊天室面板 -->
     <div id="chat-panel">
         <div id="chat-header">
@@ -463,16 +474,6 @@
     
     <div id="toast-container"></div>
     <div id="map"></div>
-<!-- 👉 把 HTML 按鈕放在這裡（工具列容器內） -->
-        <div class="sidebar-tool-group">
-            <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
-                <i class="fas fa-house-chimney-crack"></i>
-            </button>
-            <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
-                <i class="fas fa-cloud-sun-rain"></i>
-            </button>
-        </div>
-    </div>
     <script>
         const SERVER_URL = window.location.origin; 
         let socket, currentUser = "", currentRoom = "", map, allMapLayers = {};
