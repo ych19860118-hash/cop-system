@@ -463,7 +463,16 @@
     
     <div id="toast-container"></div>
     <div id="map"></div>
-
+<!-- 👉 把 HTML 按鈕放在這裡（工具列容器內） -->
+        <div class="sidebar-tool-group">
+            <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
+                <i class="fas fa-house-chimney-crack"></i>
+            </button>
+            <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
+                <i class="fas fa-cloud-sun-rain"></i>
+            </button>
+        </div>
+    </div>
     <script>
         const SERVER_URL = window.location.origin; 
         let socket, currentUser = "", currentRoom = "", map, allMapLayers = {};
@@ -1680,6 +1689,33 @@
 
             toggleControl.addTo(mapInstance);
         }
+        document.addEventListener('DOMContentLoaded', () => {
+            // 查詢地震資料
+            document.getElementById('btn-earthquake').addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/api/earthquake/data');
+                    const earthquakes = await response.json();
+                    console.log('最新地震資料：', earthquakes);
+                    alert(`成功取得最新地震資料，共 ${earthquakes.length} 筆，請至主控台 (F12) 查看詳情。`);
+                } catch (error) {
+                    console.error('無法取得地震資料', error);
+                    alert('無法取得地震資料，請稍後再試。');
+                }
+            });
+
+            // 查詢氣象資料
+            document.getElementById('btn-weather').addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/api/weather/data');
+                    const weatherData = await response.json();
+                    console.log('即時氣象資料：', weatherData);
+                    alert('成功取得即時氣象資料，請至主控台 (F12) 查看詳情。');
+                } catch (error) {
+                    console.error('無法取得氣象資料', error);
+                    alert('無法取得氣象資料，請稍後再試。');
+                }
+            });
+        });
     </script>
 </body>
 </html>
