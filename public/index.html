@@ -1749,7 +1749,6 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
         const response = await fetch('/api/weather/data');
         const weatherData = await response.json();
         
-        // 自動氣象站的陣列通常放在 records.Station
         const stations = weatherData.records?.Station || [];
         if (stations.length === 0) {
             modalBody.innerHTML = "<p>目前無氣象資料。</p>";
@@ -1758,16 +1757,12 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
 
         let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
         stations.slice(0, 15).forEach(st => {
-            const elements = st.WeatherElement || [];
-            let temp = 'N/A';
+            // 👉 O-A0003-001 的 WeatherElement 是直接包含 AirTemperature 屬性的物件
+            const elements = st.WeatherElement || {};
+            let temp = elements.AirTemperature ?? 'N/A';
             
-            if (Array.isArray(elements)) {
-                // 氣象站的氣溫欄位名稱為 AirTemperature
-                const tempItem = elements.find(e => e.ElementName === 'AirTemperature');
-                if (tempItem) {
-                    temp = tempItem.AirTemperature ?? tempItem.ElementValue ?? 'N/A';
-                }
-            }
+            // 如果剛好低於絕對零度或異常值（如 -99），則顯示 N/A
+            if (temp === -99 || temp === '-99') temp = 'N/A';
 
             html += `<li style="margin-bottom: 8px;">
                 <strong>${st.StationName} (${st.StationId})</strong> - 
