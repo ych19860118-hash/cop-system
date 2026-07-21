@@ -56,8 +56,8 @@ app.get('/api/earthquake/data', async (req, res) => {
 
 app.get('/api/weather/data', async (req, res) => {
     try {
-        // 👉 將 O-A0002-001 改為 O-A0001-001 (自動氣象站)
-        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=${getApiKey()}&format=JSON`;
+        // 👉 改為 O-A0003-001 (現在天氣觀測報告，包含氣溫)
+        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${getApiKey()}&format=JSON`;
         const response = await axios.get(url, { timeout: 5000 });
         res.json(response.data);
     } catch (error) { 
