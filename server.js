@@ -23,7 +23,6 @@ let rooms = {
 };
 
 // --- 自動清理機制 (每 15 分鐘檢查一次) ---
-// 非公開頻道在 8 小時閒置且無人時會被自動刪除
 setInterval(() => {
     const EIGHT_HOURS = 8 * 60 * 60 * 1000;
     const now = Date.now();
@@ -40,11 +39,8 @@ setInterval(() => {
 // --- API Endpoints ---
 app.get('/api/earthquake/data', async (req, res) => {
     try {
-        // 👉 修正為正確的氣象署顯著有感地震資料集代碼 E-A0015-001
         const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization=${getApiKey()}`;
         const response = await axios.get(url, { timeout: 5000 });
-        
-        // 兼容氣象署地震資料的各種回傳結構
         const records = response.data.records;
         const earthquakes = records?.Earthquake || records?.地震 || [];
         res.json(earthquakes);
@@ -56,7 +52,6 @@ app.get('/api/earthquake/data', async (req, res) => {
 
 app.get('/api/weather/data', async (req, res) => {
     try {
-        // 👉 改為 O-A0003-001 (現在天氣觀測報告，包含氣溫)
         const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${getApiKey()}&format=JSON`;
         const response = await axios.get(url, { timeout: 5000 });
         res.json(response.data);
@@ -87,7 +82,7 @@ io.on('connection', (socket) => {
         socket.myRoom = data.roomName;
 
         if (!rooms[data.roomName]) {
-            rooms[data.roomName] = { objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
+            rooms[data.roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
         
         rooms[data.roomName].userList.push({ id: socket.id, name: data.username });
@@ -98,9 +93,15 @@ io.on('connection', (socket) => {
             text: `【${data.username}】已加入房間`,
             time: getFormattedTime()
         });
+        
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
+        
+        // 傳送歷史圖資物件
         socket.emit('history_objects', rooms[data.roomName].objects);
+        
+        // 👉 【新增修正】加入房間時，把該房間過去的聊天紀錄傳給剛加入的使用者
+        socket.emit('history_chats', rooms[data.roomName].chatHistory);
     });
 
     // 即時位置廣播
