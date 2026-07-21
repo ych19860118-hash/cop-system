@@ -1709,20 +1709,29 @@ document.getElementById('btn-earthquake').addEventListener('click', async () => 
             return;
         }
 
-let html = '<ul style="padding-left: 20px; margin: 0;">';
+let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
         earthquakes.slice(0, 10).forEach(eq => {
             const info = eq.EarthquakeInfo || {};
             const time = info.OriginTime || eq.ReportTime || '時間未知';
-            const magnitude = info.Magnitude?.MagnitudeValue || 'N/A';
-            const depth = info.FocalDepth || 'N/A';
             
-            // 👉 精準對應氣象署的震央位置欄位
-            const desc = info.Location || eq.ReportContent || '詳細資訊請參閱氣象署';
+            // 嘗試多種可能的路徑取得規模，如果都沒有就從 ReportContent 文字中抓取
+            let magnitude = info.Magnitude?.MagnitudeValue || info.EarthquakeMagnitude?.[0]?.MagnitudeValue || 'N/A';
+            const content = eq.ReportContent || info.Location || '';
+            
+            if (magnitude === 'N/A' && content.includes('規模')) {
+                const match = content.match(/規模\s*([0-9.]+)/);
+                if (match) magnitude = match[1];
+            }
 
-            html += `<li style="margin-bottom: 12px;">
-                <strong>${time}</strong><br>
-                規模：${magnitude} | 深度：${depth} 公里<br>
-                <span style="font-size: 12px; color: #cbd5e0;">震央：${desc}</span>
+            const depth = info.FocalDepth || '未知';
+            
+            // 簡化震央顯示：優先取 Location，若沒有則用 ReportContent
+            const location = info.Location || content;
+
+            html += `<li style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
+                <strong>${time.replace('T', ' ').substring(0, 16)}</strong><br>
+                📍 <strong>震央：</strong>${location}<br>
+                ⚡ <strong>規模：</strong>${magnitude} 級 ｜ 🌊 <strong>深度：</strong>${depth} 公里
             </li>`;
         });
         html += '</ul>';
