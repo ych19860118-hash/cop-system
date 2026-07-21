@@ -440,15 +440,15 @@
         </div>
     </div>
 <!-- 👉 把 HTML 按鈕放在這裡（工具列容器內） -->
-        <div class="sidebar-tool-group">
-            <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
-                <i class="fas fa-house-chimney-crack"></i>
-            </button>
-            <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
-                <i class="fas fa-cloud-sun-rain"></i>
-            </button>
-        </div>
+<div class="sidebar-tool-group" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
+        <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
+            <i class="fas fa-house-chimney-crack"></i>
+        </button>
+        <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
+            <i class="fas fa-cloud-sun-rain"></i>
+        </button>
     </div>
+</div>
     <!-- 聊天室面板 -->
     <div id="chat-panel">
         <div id="chat-header">
@@ -1691,32 +1691,79 @@
             toggleControl.addTo(mapInstance);
         }
         document.addEventListener('DOMContentLoaded', () => {
-            // 查詢地震資料
-            document.getElementById('btn-earthquake').addEventListener('click', async () => {
-                try {
-                    const response = await fetch('/api/earthquake/data');
-                    const earthquakes = await response.json();
-                    console.log('最新地震資料：', earthquakes);
-                    alert(`成功取得最新地震資料，共 ${earthquakes.length} 筆，請至主控台 (F12) 查看詳情。`);
-                } catch (error) {
-                    console.error('無法取得地震資料', error);
-                    alert('無法取得地震資料，請稍後再試。');
-                }
-            });
+        const modal = document.getElementById('data-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
 
-            // 查詢氣象資料
-            document.getElementById('btn-weather').addEventListener('click', async () => {
-                try {
-                    const response = await fetch('/api/weather/data');
-                    const weatherData = await response.json();
-                    console.log('即時氣象資料：', weatherData);
-                    alert('成功取得即時氣象資料，請至主控台 (F12) 查看詳情。');
-                } catch (error) {
-                    console.error('無法取得氣象資料', error);
-                    alert('無法取得氣象資料，請稍後再試。');
+        // 查詢地震資料
+        document.getElementById('btn-earthquake').addEventListener('click', async () => {
+            try {
+                modalTitle.textContent = "最新地震資料 (中央氣象署)";
+                modalBody.innerHTML = "資料載入中...";
+                modal.style.display = 'flex';
+
+                const response = await fetch('/api/earthquake/data');
+                const earthquakes = await response.json();
+
+                if (earthquakes.length === 0) {
+                    modalBody.innerHTML = "<p>目前無地震資料。</p>";
+                    return;
                 }
-            });
+
+                let html = '<ul style="padding-left: 20px; margin: 0;">';
+                earthquakes.slice(0, 10).forEach(eq => {
+                    const info = eq.ReportContent || eq.EarthquakeInfo || {};
+                    html += `<li style="margin-bottom: 10px;">
+                        <strong>${info.OriginTime || '時間未知'}</strong><br>
+                        規模：${info.EarthquakeMagnitude?.MagnitudeValue || 'N/A'} | 
+                        深度：${info.FocalDepth || 'N/A'} 公里<br>
+                        震央：${info.Epicenter?.Location || eq.ReportRemark || '詳細地點未提供'}
+                    </li>`;
+                });
+                html += '</ul>';
+                modalBody.innerHTML = html;
+            } catch (error) {
+                console.error('無法取得地震資料', error);
+                modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得地震資料，請稍後再試。</p>";
+            }
         });
+
+        // 查詢氣象資料
+        document.getElementById('btn-weather').addEventListener('click', async () => {
+            try {
+                modalTitle.textContent = "即時氣象站資料 (中央氣象署)";
+                modalBody.innerHTML = "資料載入中...";
+                modal.style.display = 'flex';
+
+                const response = await fetch('/api/weather/data');
+                const weatherData = await response.json();
+                
+                const stations = weatherData.records?.Station || [];
+                if (stations.length === 0) {
+                    modalBody.innerHTML = "<p>目前無氣象資料。</p>";
+                    return;
+                }
+
+                let html = '<ul style="padding-left: 20px; margin: 0;">';
+                stations.slice(0, 15).forEach(st => {
+                    const temp = st.WeatherElement?.AirTemperature ?? 'N/A';
+                    html += `<li style="margin-bottom: 8px;">
+                        <strong>${st.StationName} (${st.StationId})</strong> - 
+                        氣溫：${temp}°C
+                    </li>`;
+                });
+                html += '</ul>';
+                modalBody.innerHTML = html;
+            } catch (error) {
+                console.error('無法取得氣象資料', error);
+                modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得氣象資料，請稍後再試。</p>";
+            }
+        });
+    });
+
+    function closeDataModal() {
+        document.getElementById('data-modal').style.display = 'none';
+    }
     </script>
 </body>
 </html>
