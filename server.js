@@ -40,10 +40,18 @@ setInterval(() => {
 // --- API Endpoints ---
 app.get('/api/earthquake/data', async (req, res) => {
     try {
-        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0016-001?Authorization=${getApiKey()}`;
+        // 👉 修正為正確的氣象署顯著有感地震資料集代碼 E-A0015-001
+        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization=${getApiKey()}`;
         const response = await axios.get(url, { timeout: 5000 });
-        res.json(response.data.records.Earthquake || []);
-    } catch (error) { res.status(502).json({ error: "無法取得地震資料" }); }
+        
+        // 兼容氣象署地震資料的各種回傳結構
+        const records = response.data.records;
+        const earthquakes = records?.Earthquake || records?.地震 || [];
+        res.json(earthquakes);
+    } catch (error) { 
+        console.error('地震 API 錯誤:', error.message);
+        res.status(502).json({ error: "無法取得地震資料" }); 
+    }
 });
 
 app.get('/api/weather/data', async (req, res) => {
@@ -51,7 +59,10 @@ app.get('/api/weather/data', async (req, res) => {
         const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001?Authorization=${getApiKey()}&format=JSON`;
         const response = await axios.get(url, { timeout: 5000 });
         res.json(response.data);
-    } catch (error) { res.status(502).json({ error: "無法取得氣象資料" }); }
+    } catch (error) { 
+        console.error('氣象 API 錯誤:', error.message);
+        res.status(502).json({ error: "無法取得氣象資料" }); 
+    }
 });
 
 app.post('/api/login', (req, res) => {
