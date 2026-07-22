@@ -561,8 +561,8 @@ function initMapInstance() {
     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
     
     // 阻斷控制項上的點擊事件穿透到 Leaflet 地圖
-    ['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal', 'measure-panel'].forEach(id => {
-        const el = document.getElementById(id);
+['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal', 'measure-panel'].forEach(id => {    
+    const el = document.getElementById(id);
         if (el) L.DomEvent.disableClickPropagation(el);
     });
 
@@ -571,80 +571,84 @@ function initMapInstance() {
     initWeatherFeatures(map);
 }
 
-        function switchTool(tool) {
-            if ((currentTool === 'polyline' || currentTool === 'polygon') && tempPoints.length > 0) {
-                if (tempShape) {
-                    map.removeLayer(tempShape);
-                    tempShape = null;
-                }
-                tempPoints = [];
-            }
+function switchTool(tool) {
+    if ((currentTool === 'polyline' || currentTool === 'polygon' || currentTool === 'measure') && tempPoints.length > 0) {
+        if (tempShape) {
+            map.removeLayer(tempShape);
+            tempShape = null;
+        }
+        tempPoints = [];
+    }
 
-            currentTool = tool; 
-            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-            if (tempShape && tool !== 'polyline' && tool !== 'polygon') { 
-                map.removeLayer(tempShape); 
-                tempShape = null; 
-            } 
-            if (tool !== 'polyline' && tool !== 'polygon') {
-                tempPoints = [];
-            }
-            
-            const id = 'btn-' + tool; 
-            if (document.getElementById(id)) document.getElementById(id).classList.add('active'); 
+    currentTool = tool; 
+    document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+    
+    if (tempShape && tool !== 'polyline' && tool !== 'polygon' && tool !== 'measure') { 
+        map.removeLayer(tempShape); 
+        tempShape = null; 
+    } 
+    if (tool !== 'polyline' && tool !== 'polygon' && tool !== 'measure') {
+        tempPoints = [];
+    }
+    
+    const id = 'btn-' + tool; 
+    if (document.getElementById(id)) document.getElementById(id).classList.add('active'); 
 
-            const isDrawing = (tool !== 'pan' && tool !== 'locate' && tool !== 'search');
-            const finishBtn = document.getElementById('btn-finish');
-            if (finishBtn) {
-                finishBtn.style.display = (tool === 'polyline' || tool === 'polygon') ? 'flex' : 'none';
-            }
-            
-            Object.values(allMapLayers).forEach(item => {
-                if (item.layer) {
-                    if (isDrawing) {
-                        try { item.layer.closePopup(); } catch(err) {}
-                        if (map.hasLayer(item.layer)) map.removeLayer(item.layer);
-                    } else {
-                        if (!map.hasLayer(item.layer)) item.layer.addTo(map);
-                    }
-                }
-                if (item.pin) {
-                    if (isDrawing) { if (map.hasLayer(item.pin)) map.removeLayer(item.pin); }
-                    else { if (!map.hasLayer(item.pin)) item.pin.addTo(map); }
-                }
-                if (item.resizePin) {
-                    if (isDrawing) { if (map.hasLayer(item.resizePin)) map.removeLayer(item.resizePin); }
-                    else { if (!map.hasLayer(item.resizePin)) item.resizePin.addTo(map); }
-                }
-                if (item.vertexPins) {
-                    item.vertexPins.forEach(vp => {
-                        if (isDrawing) { if (map.hasLayer(vp)) map.removeLayer(vp); }
-                        else { if (!map.hasLayer(vp)) vp.addTo(map); }
-                    });
-                }
-            });
-
-            Object.values(allEventLayers).forEach(item => {
-                if (item.layer) {
-                    if (isDrawing) {
-                        try { item.layer.closePopup(); } catch(err) {}
-                        if (map.hasLayer(item.layer)) map.removeLayer(item.layer);
-                    } else {
-                        if (!map.hasLayer(item.layer)) item.layer.addTo(map);
-                    }
-                }
-            });
-
-            if (tool === 'event') {
-                showToast("請在地圖上點擊要回報事件的位置");
-            } else if (tool === 'polyline' || tool === 'polygon') {
-                showToast("請在地圖上依序點擊各座標，長按畫面或點擊打勾按鈕即可結束");
-            } else if (isDrawing) {
-                showToast("已進入繪圖模式，現有物件已隱藏以方便新增");
+    // 將 measure 視為獨立功能（不隱藏既有圖層）
+    const isDrawing = (tool !== 'pan' && tool !== 'locate' && tool !== 'search' && tool !== 'measure');
+    const finishBtn = document.getElementById('btn-finish');
+    if (finishBtn) {
+        finishBtn.style.display = (tool === 'polyline' || tool === 'polygon') ? 'flex' : 'none';
+    }
+    
+    Object.values(allMapLayers).forEach(item => {
+        if (item.layer) {
+            if (isDrawing) {
+                try { item.layer.closePopup(); } catch(err) {}
+                if (map.hasLayer(item.layer)) map.removeLayer(item.layer);
             } else {
-                showToast("已返回導覽模式");
+                if (!map.hasLayer(item.layer)) item.layer.addTo(map);
             }
         }
+        if (item.pin) {
+            if (isDrawing) { if (map.hasLayer(item.pin)) map.removeLayer(item.pin); }
+            else { if (!map.hasLayer(item.pin)) item.pin.addTo(map); }
+        }
+        if (item.resizePin) {
+            if (isDrawing) { if (map.hasLayer(item.resizePin)) map.removeLayer(item.resizePin); }
+            else { if (!map.hasLayer(item.resizePin)) item.resizePin.addTo(map); }
+        }
+        if (item.vertexPins) {
+            item.vertexPins.forEach(vp => {
+                if (isDrawing) { if (map.hasLayer(vp)) map.removeLayer(vp); }
+                else { if (!map.hasLayer(vp)) vp.addTo(map); }
+            });
+        }
+    });
+
+    Object.values(allEventLayers).forEach(item => {
+        if (item.layer) {
+            if (isDrawing) {
+                try { item.layer.closePopup(); } catch(err) {}
+                if (map.hasLayer(item.layer)) map.removeLayer(item.layer);
+            } else {
+                if (!map.hasLayer(item.layer)) item.layer.addTo(map);
+            }
+        }
+    });
+
+    if (tool === 'event') {
+        showToast("請在地圖上點擊要回報事件的位置");
+    } else if (tool === 'polyline' || tool === 'polygon') {
+        showToast("請在地圖上依序點擊各座標，長按畫面或點擊打勾按鈕即可結束");
+    } else if (tool === 'measure') {
+        showToast("📏 已啟動測量工具：請在地圖上點擊起點與終點進行距離測量");
+    } else if (isDrawing) {
+        showToast("已進入繪圖模式，現有物件已隱藏以方便新增");
+    } else {
+        showToast("已返回導覽模式");
+    }
+}
 
         function previewEvtPhoto(event) {
             const file = event.target.files[0];
@@ -729,15 +733,56 @@ function initMapInstance() {
             switchTool('pan');
         }
 
-        function initDrawingEvents() {
+       function initDrawingEvents() {
             map.on('click', function(e) {
+                // ================= 1. 加入測量工具的點擊邏輯 =================
+                if (currentTool === 'measure') {
+                    const lat = e.latlng.lat, lng = e.latlng.lng;
+                    
+                    if (tempPoints.length === 0) {
+                        // 第一個點：設定起點
+                        tempPoints.push({ lat, lng });
+                        tempShape = L.circleMarker([lat, lng], { color: '#39ff14', radius: 6, fillOpacity: 1 }).addTo(map);
+                        tempShape.bindPopup(`📍 測量起點<br>${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
+                        showToast("✅ 已記錄起點，請點擊終點位置");
+                    } else {
+                        // 第二個點：計算距離並畫線
+                        const startLatLng = L.latLng(tempPoints[0].lat, tempPoints[0].lng);
+                        const endLatLng = L.latLng(lat, lng);
+                        const distanceMeters = map.distance(startLatLng, endLatLng);
+                        
+                        let distanceText = distanceMeters >= 1000 ? 
+                            `${(distanceMeters / 1000).toFixed(2)} 公里 (km)` : 
+                            `${distanceMeters.toFixed(1)} 公尺 (m)`;
+
+                        if (tempShape) map.removeLayer(tempShape);
+                        tempShape = L.polyline([startLatLng, endLatLng], { color: '#39ff14', weight: 4, dashArray: '5, 5' }).addTo(map);
+                        
+                        tempShape.bindPopup(`
+                            <div style="font-family: sans-serif; font-size: 13px;">
+                                <b>📏 戰術測量結果</b><br>
+                                直線距離：<span style="color: #22c55e; font-weight: bold; font-size: 15px;">${distanceText}</span><br>
+                                <small style="color: gray;">起點: ${tempPoints[0].lat.toFixed(4)}, ${tempPoints[0].lng.toFixed(4)}</small><br>
+                                <small style="color: gray;">終點: ${lat.toFixed(4)}, ${lng.toFixed(4)}</small><br>
+                                <button onclick="switchTool('pan')" style="margin-top: 6px; padding: 3px 8px; background: #22c55e; border: none; color: black; font-weight: bold; border-radius: 3px; cursor: pointer;">清除並關閉</button>
+                            </div>
+                        `).openPopup(endLatLng);
+
+                        showToast(`📏 測量完成：${distanceText}`);
+                        tempPoints = []; // 重置點位以便再次測量
+                    }
+                    return;
+                }
+                // ========================================================
+
                 if (currentTool === 'event') {
                     pendingEventLatLng = e.latlng;
                     document.getElementById('event-modal').style.display = 'flex';
                     return;
                 }
 
-                if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'search') return;
+                // 加入 'measure' 排除
+                if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'search' || currentTool === 'measure') return;
 
                 const lat = e.latlng.lat, lng = e.latlng.lng;
                 
@@ -778,7 +823,8 @@ function initMapInstance() {
             });
 
             map.on('contextmenu', function(e) {
-                if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'event' || currentTool === 'search') return;
+                // 加入 'measure' 排除
+                if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'event' || currentTool === 'search' || currentTool === 'measure') return;
                 finishCurrentDrawing();
             });
 
@@ -786,7 +832,8 @@ function initMapInstance() {
             const mapContainer = map.getContainer();
 
             mapContainer.addEventListener('touchstart', function(e) {
-                if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'event' || currentTool === 'search') return;
+                // 加入 'measure' 排除
+                if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'event' || currentTool === 'search' || currentTool === 'measure') return;
                 if (e.touches.length !== 1) return; 
                 
                 touchTimer = setTimeout(function() {
@@ -807,39 +854,6 @@ function initMapInstance() {
                     touchTimer = null;
                 }
             }, { passive: true });
-        }
-
-        async function login() {
-            const userIn = document.getElementById('username').value.trim();
-            const passIn = document.getElementById('room-password').value;
-            const adminSecIn = document.getElementById('admin-secret').value;
-            const roomSel = document.getElementById('room-select').value;
-            let targetRoom = roomSel === 'custom' ? document.getElementById('custom-room-name').value.trim() : roomSel;
-            if(!userIn) { alert("請輸入通報暱稱！"); return; }
-            try {
-                const res = await fetch(`${SERVER_URL}/api/login`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ username: userIn, roomPassword: passIn, roomName: targetRoom, adminSecret: adminSecIn })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    currentUser = data.username; currentRoom = data.roomName;
-                    document.getElementById('login-box').style.display = 'none';
-                    document.getElementById('map').style.display = 'block'; 
-                    document.getElementById('custom-toolbar').style.display = 'flex'; 
-                    document.getElementById('toggle-info-btn').style.display = 'flex';
-                    document.getElementById('toggle-chat-btn').style.display = 'flex';
-                    document.getElementById('toggle-users-btn').style.display = 'flex';
-                    document.getElementById('toggle-help-btn').style.display = 'flex';
-                    document.getElementById('state-room').innerText = currentRoom;
-                    
-                    if (currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]')) {
-                        document.getElementById('admin-clear-btn').style.display = 'block';
-                    }
-                    
-                    initMapInstance(); setTimeout(() => { if (map) map.invalidateSize(); }, 300); initSocketAndLayers(); 
-                } else { document.getElementById('login-error').innerText = data.message; }
-            } catch (err) { document.getElementById('login-error').innerText = "連線後端錯誤！"; }
         }
 
         function initSocketAndLayers() {
