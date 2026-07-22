@@ -747,8 +747,6 @@ function initDrawingEvents() {
                         showToast("✅ 已記錄起點，請點擊終點位置");
                     } else {
                         // 第二個點：計算距離並畫線
-} else {
-                        // 第二個點：計算距離並畫線
                         const startLatLng = L.latLng(tempPoints[0].lat, tempPoints[0].lng);
                         const endLatLng = L.latLng(lat, lng);
                         const distanceMeters = map.distance(startLatLng, endLatLng);
