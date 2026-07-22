@@ -43,7 +43,11 @@ app.get('/api/earthquake/data', async (req, res) => {
         const response = await axios.get(url, { timeout: 5000 });
         const records = response.data.records;
         const earthquakes = records?.Earthquake || records?.地震 || [];
-        res.json(earthquakes);
+        
+        // 修改這裡：只回傳最新的一筆（如果陣列有資料的話）
+        const latestEarthquake = earthquakes.length > 0 ? [earthquakes[0]] : [];
+        res.json(latestEarthquake);
+
     } catch (error) { 
         console.error('地震 API 錯誤:', error.message);
         res.status(502).json({ error: "無法取得地震資料" }); 
