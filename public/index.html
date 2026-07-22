@@ -736,14 +736,22 @@ function switchTool(tool) {
 function initDrawingEvents() {
             map.on('click', function(e) {
                 // ================= 1. 加入測量工具的點擊邏輯 =================
-                if (currentTool === 'measure') {
+               if (currentTool === 'measure') {
                     const lat = e.latlng.lat, lng = e.latlng.lng;
                     
                     if (tempPoints.length === 0) {
+                        // 開始新的測量前，先清除畫面上殘留的測量圖形
+                        if (window.measureGroup) {
+                            map.removeLayer(window.measureGroup);
+                        }
+                        window.measureGroup = L.layerGroup().addTo(map);
+
                         // 第一個點：設定起點
                         tempPoints.push({ lat, lng });
-                        tempShape = L.circleMarker([lat, lng], { color: '#39ff14', radius: 6, fillOpacity: 1 }).addTo(map);
-                        tempShape.bindPopup(`📍 測量起點<br>${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
+                        const startMarker = L.circleMarker([lat, lng], { color: '#39ff14', radius: 6, fillOpacity: 1 });
+                        window.measureGroup.addLayer(startMarker);
+                        
+                        startMarker.bindPopup(`📍 測量起點<br>${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
                         showToast("✅ 已記錄起點，請點擊終點位置");
                     } else {
                         // 第二個點：計算距離並畫線
@@ -755,22 +763,17 @@ function initDrawingEvents() {
                             `${(distanceMeters / 1000).toFixed(2)} 公里 (km)` : 
                             `${distanceMeters.toFixed(1)} 公尺 (m)`;
 
-                        // 【修改重點】如果畫面上已經有上一次的測量圖形，先徹底移除
-                        if (tempShape) {
-                            map.removeLayer(tempShape);
-                            tempShape = null;
-                        }
-
-                        // 建立新的測量連線
-                        tempShape = L.polyline([startLatLng, endLatLng], { color: '#39ff14', weight: 4, dashArray: '5, 5' }).addTo(map);
+                        // 畫出測量連線並加入群組
+                        const line = L.polyline([startLatLng, endLatLng], { color: '#39ff14', weight: 4, dashArray: '5, 5' });
+                        window.measureGroup.addLayer(line);
                         
-                        tempShape.bindPopup(`
+                        line.bindPopup(`
                             <div style="font-family: sans-serif; font-size: 13px;">
                                 <b>📏 戰術測量結果</b><br>
                                 直線距離：<span style="color: #22c55e; font-weight: bold; font-size: 15px;">${distanceText}</span><br>
                                 <small style="color: gray;">起點: ${tempPoints[0].lat.toFixed(4)}, ${tempPoints[0].lng.toFixed(4)}</small><br>
                                 <small style="color: gray;">終點: ${lat.toFixed(4)}, ${lng.toFixed(4)}</small><br>
-                                <button onclick="if(tempShape){map.removeLayer(tempShape); tempShape=null;} switchTool('pan');" style="margin-top: 6px; padding: 3px 8px; background: #22c55e; border: none; color: black; font-weight: bold; border-radius: 3px; cursor: pointer;">清除並關閉</button>
+                                <button onclick="if(window.measureGroup){map.removeLayer(window.measureGroup); window.measureGroup=null;} switchTool('pan');" style="margin-top: 6px; padding: 3px 8px; background: #22c55e; border: none; color: black; font-weight: bold; border-radius: 3px; cursor: pointer;">清除並關閉</button>
                             </div>
                         `).openPopup(endLatLng);
 
