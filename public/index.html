@@ -1847,9 +1847,6 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
     function closeDataModal() {
         document.getElementById('data-modal').style.display = 'none';
     }
-    // 您的其他所有 JavaScript 程式碼...
-
-    // 最後把這段貼在 </script> 的上一行
     if (typeof map !== 'undefined' && map) {
         map.on('click', (e) => {
             if (typeof currentTool === 'undefined' || currentTool !== 'measure' || !measureActive) return;
