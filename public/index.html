@@ -346,6 +346,9 @@
         <button class="tool-btn" id="btn-search" onclick="openSearchModal()" title="地址或座標搜尋定位" style="color: #39ff14;">
             🔍
         </button>
+        <button class="tool-btn" id="btn-measure" onclick="switchTool('measure')" title="座標與測量工具">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20M12 2v20"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
         <div class="sidebar-tool-group" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; width: 100%;">
             <!-- 地震按鈕：使用專屬地震波動 SVG -->
             <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
@@ -558,7 +561,7 @@ function initMapInstance() {
     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
     
     // 阻斷控制項上的點擊事件穿透到 Leaflet 地圖
-    ['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal'].forEach(id => {
+    ['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal', 'measure-panel'].forEach(id => {
         const el = document.getElementById(id);
         if (el) L.DomEvent.disableClickPropagation(el);
     });
