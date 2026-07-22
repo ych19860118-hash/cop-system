@@ -478,33 +478,6 @@
     <div id="toast-container"></div>
     <div id="map"></div>
     <script>
-        function initChatAndUsersSocket() {
-        if (!socket) return;
-
-        socket.on('update_users_list', function(users) {
-            onlineUsersList = users || [];
-            renderOnlineUsers();
-            const countBadge = document.getElementById('state-count');
-            if (countBadge) countBadge.innerText = onlineUsersList.length;
-        });
-
-        socket.on('chat_message', function(data) {
-            appendChatMessage(data.sender, data.message, data.time);
-            const chatPanel = document.getElementById('chat-panel');
-            if (window.getComputedStyle(chatPanel).display === 'none') {
-                const badge = document.getElementById('chat-badge');
-                if (badge) badge.style.display = 'block';
-            }
-        });
-    }
-        const SERVER_URL = window.location.origin; 
-        let socket, currentUser = "", currentRoom = "", map, allMapLayers = {};
-        let allEventLayers = {};
-        let currentTool = "pan", tempPoints = [], tempShape = null;
-        let pendingEventLatLng = null, pendingPhotoBase64 = null;
-        let onlineUsersList = [];
-        let searchTempMarker = null; 
-
         // 雷達圖層全域變數
         let radarLayer = null;
         let isRadarVisible = false;
