@@ -1020,13 +1020,19 @@ function initDrawingEvents() {
                 btn.classList.remove('active');
             }
         }
-        function sendChat() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if (!text || !socket) return;
-            socket.emit('send_chat', text);
-            input.value = '';
-        }
+ function sendChat() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text || !socket) return;
+    
+    // 請確認後端監聽的是 'send_chat' 還是 'chat_message'
+    socket.emit('send_chat', {
+        message: text,
+        time: getFormattedTime()
+    });
+    
+    input.value = '';
+}
 
         function checkChatKey(e) {
             if (e.key === 'Enter') sendChat();
@@ -1791,6 +1797,36 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
     function closeDataModal() {
         document.getElementById('data-modal').style.display = 'none';
     }
+        async function login() {
+            const userIn = document.getElementById('username').value.trim();
+            const passIn = document.getElementById('room-password').value;
+            const adminSecIn = document.getElementById('admin-secret').value;
+            const roomSel = document.getElementById('room-select').value;
+            let targetRoom = roomSel === 'custom' ? document.getElementById('custom-room-name').value.trim() : roomSel;
+            if(!userIn) { alert("請輸入通報暱稱！"); return; }
+            try {
+                const res = await fetch(`${SERVER_URL}/api/login`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ username: userIn, roomPassword: passIn, roomName: targetRoom, adminSecret: adminSecIn })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentUser = data.username; currentRoom = data.roomName;
+                    document.getElementById('login-box').style.display = 'none';
+                    document.getElementById('map').style.display = 'block'; 
+                    document.getElementById('custom-toolbar').style.display = 'flex'; 
+                    // ... (省略中間顯示 UI 的程式碼) ...
+
+                    // ⬇️ 在這裡初始化地圖與 Socket 之後，加上這行！
+                    initMapInstance(); 
+                    setTimeout(() => { if (map) map.invalidateSize(); }, 300); 
+                    
+                    initSocketAndLayers(); 
+                    initChatAndUsersSocket(); // <-- 確實註冊聊天與在線用戶監聽
+
+                } else { document.getElementById('login-error').innerText = data.message; }
+            } catch (err) { document.getElementById('login-error').innerText = "連線後端錯誤！"; }
+        }
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
     <div style="padding:15px; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
