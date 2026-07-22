@@ -44,7 +44,6 @@ app.get('/api/earthquake/data', async (req, res) => {
         const records = response.data.records;
         const earthquakes = records?.Earthquake || records?.地震 || [];
         
-        // 修改這裡：只回傳最新的一筆（如果陣列有資料的話）
         const latestEarthquake = earthquakes.length > 0 ? [earthquakes[0]] : [];
         res.json(latestEarthquake);
 
@@ -89,7 +88,6 @@ io.on('connection', (socket) => {
             rooms[data.roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
         
-        // 方案 A 修改：直接將使用者名稱（字串）存入 userList
         if (!rooms[data.roomName].userList.includes(data.username)) {
             rooms[data.roomName].userList.push(data.username);
         }
@@ -108,28 +106,7 @@ io.on('connection', (socket) => {
         // 傳送歷史聊天紀錄給剛加入的使用者
         socket.emit('history_chats', rooms[data.roomName].chatHistory);
     });
-socket.on('disconnect', () => {
-        if (socket.myRoom && socket.myName && rooms[socket.myRoom]) {
-            const userList = rooms[socket.myRoom].userList;
-            const index = userList.indexOf(socket.myName);
-            if (index !== -1) {
-                userList.splice(index, 1);
-            }
 
-            const leaveMsg = { 
-                sender: "系統通知", 
-                message: `【${socket.myName}】已離開房間`, 
-                time: getFormattedTime() 
-            };
-            rooms[socket.myRoom].chatHistory.push(leaveMsg);
-            
-            io.to(socket.myRoom).emit('receive_chat', leaveMsg);
-            io.to(socket.myRoom).emit('update_user_list', userList);
-            io.to(socket.myRoom).emit('update_user_count', userList.length);
-        }
-    });
-
-});
     // 即時位置廣播
     socket.on('update_location', (data) => {
         if (socket.myRoom) {
@@ -170,10 +147,22 @@ socket.on('disconnect', () => {
 
     socket.on('disconnect', () => {
         if (socket.myRoom && rooms[socket.myRoom]) {
-            // 方案 A 修改：透過斷線者的名稱（socket.myName）從陣列中過濾移除
             if (socket.myName) {
+                // 從名單中移除
                 rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
+
+                // 產生離開的系統聊天訊息並記錄到歷史中
+                const leaveMsg = { 
+                    sender: "系統通知", 
+                    message: `【${socket.myName}】已離開房間`, 
+                    time: getFormattedTime() 
+                };
+                rooms[socket.myRoom].chatHistory.push(leaveMsg);
+                
+                // 廣播給房間內所有人
+                io.to(socket.myRoom).emit('receive_chat', leaveMsg);
             }
+            
             io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
             io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
             io.to(socket.myRoom).emit('user_disconnected', socket.id);
