@@ -533,21 +533,40 @@
             setTimeout(() => toast.remove(), 3500);
         }
 
-        function initMapInstance() {
-            if (map) return; 
-            map = L.map('map', { doubleClickZoom: false, zoomControl: false, tapHold: false }).setView([23.6, 121], 8);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-            
-            // 阻斷控制項上的點擊事件穿透到 Leaflet 地圖
-            ['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) L.DomEvent.disableClickPropagation(el);
-            });
+function initMapInstance() {
+    if (map) return; 
 
-            window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
-            initDrawingEvents();
-            initWeatherFeatures(map);
-        }
+    // 1. 定義多種底圖圖層
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+
+    // 2. 初始化地圖，預設帶入深色戰術風（或改為 osmLayer）
+    map = L.map('map', { 
+        doubleClickZoom: false, 
+        zoomControl: false, 
+        tapHold: false,
+        layers: [darkLayer] // 預設底圖
+    }).setView([23.6, 121], 8);
+
+    // 3. 建立圖層選單並加入地圖（右上角切換）
+    const baseMaps = {
+        "戰術深色模式": darkLayer,
+        "標準地圖 (OSM)": osmLayer,
+        "衛星空照圖": satelliteLayer
+    };
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+    
+    // 阻斷控制項上的點擊事件穿透到 Leaflet 地圖
+    ['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) L.DomEvent.disableClickPropagation(el);
+    });
+
+    window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
+    initDrawingEvents();
+    initWeatherFeatures(map);
+}
 
         function switchTool(tool) {
             if ((currentTool === 'polyline' || currentTool === 'polygon') && tempPoints.length > 0) {
