@@ -736,49 +736,67 @@ function switchTool(tool) {
 function initDrawingEvents() {
             map.on('click', function(e) {
                 // ================= 1. 加入測量工具的點擊邏輯 =================
-               if (currentTool === 'measure') {
+              if (currentTool === 'measure') {
                     const lat = e.latlng.lat, lng = e.latlng.lng;
                     
-                    if (tempPoints.length === 0) {
-                        // 開始新的測量前，先清除畫面上殘留的測量圖形
-                        if (window.measureGroup) {
-                            map.removeLayer(window.measureGroup);
-                        }
+                    // 如果是第一次點擊，初始化量測群組與點陣列
+                    if (!window.measureGroup) {
                         window.measureGroup = L.layerGroup().addTo(map);
-
-                        // 第一個點：設定起點
+                    }
+                    
+                    if (tempPoints.length === 0) {
+                        // 清除畫面上的舊測量
+                        window.measureGroup.clearLayers();
                         tempPoints.push({ lat, lng });
+                        
                         const startMarker = L.circleMarker([lat, lng], { color: '#39ff14', radius: 6, fillOpacity: 1 });
                         window.measureGroup.addLayer(startMarker);
-                        
                         startMarker.bindPopup(`📍 測量起點<br>${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
-                        showToast("✅ 已記錄起點，請點擊終點位置");
+                        showToast("✅ 已記錄起點，請繼續點擊下一個點（可多點連續測量）");
                     } else {
-                        // 第二個點：計算距離並畫線
-                        const startLatLng = L.latLng(tempPoints[0].lat, tempPoints[0].lng);
-                        const endLatLng = L.latLng(lat, lng);
-                        const distanceMeters = map.distance(startLatLng, endLatLng);
+                        // 加入後續點位
+                        tempPoints.push({ lat, lng });
                         
-                        let distanceText = distanceMeters >= 1000 ? 
-                            `${(distanceMeters / 1000).toFixed(2)} 公里 (km)` : 
-                            `${distanceMeters.toFixed(1)} 公尺 (m)`;
+                        // 計算所有點的總距離
+                        let totalMeters = 0;
+                        let latlngs = tempPoints.map(p => {
+                            return [p.lat, p.lng];
+                        });
+                        
+                        for (let i = 0; i < tempPoints.length - 1; i++) {
+                            totalMeters += map.distance(
+                                L.latLng(tempPoints[i].lat, tempPoints[i].lng),
+                                L.latLng(tempPoints[i+1].lat, tempPoints[i+1].lng)
+                            );
+                        }
 
-                        // 畫出測量連線並加入群組
-                        const line = L.polyline([startLatLng, endLatLng], { color: '#39ff14', weight: 4, dashArray: '5, 5' });
-                        window.measureGroup.addLayer(line);
+                        let distanceText = totalMeters >= 1000 ? 
+                            `${(totalMeters / 1000).toFixed(2)} 公里 (km)` : 
+                            `${totalMeters.toFixed(1)} 公尺 (m)`;
+
+                        // 每次點擊都清空舊線條與標記，重新畫出包含全部點的折線與最新點的 Popup
+                        window.measureGroup.clearLayers();
                         
-                        line.bindPopup(`
+                        // 畫起點與中間經過的點
+                        tempPoints.forEach((p, index) => {
+                            const marker = L.circleMarker([p.lat, p.lng], { color: '#39ff14', radius: index === 0 ? 6 : 4, fillOpacity: 1 });
+                            window.measureGroup.addLayer(marker);
+                        });
+
+                        // 畫折線
+                        const polyline = L.polyline(latlngs, { color: '#39ff14', weight: 4, dashArray: '5, 5' });
+                        window.measureGroup.addLayer(polyline);
+
+                        polyline.bindPopup(`
                             <div style="font-family: sans-serif; font-size: 13px;">
-                                <b>📏 戰術測量結果</b><br>
-                                直線距離：<span style="color: #22c55e; font-weight: bold; font-size: 15px;">${distanceText}</span><br>
-                                <small style="color: gray;">起點: ${tempPoints[0].lat.toFixed(4)}, ${tempPoints[0].lng.toFixed(4)}</small><br>
-                                <small style="color: gray;">終點: ${lat.toFixed(4)}, ${lng.toFixed(4)}</small><br>
-                                <button onclick="if(window.measureGroup){map.removeLayer(window.measureGroup); window.measureGroup=null;} switchTool('pan');" style="margin-top: 6px; padding: 3px 8px; background: #22c55e; border: none; color: black; font-weight: bold; border-radius: 3px; cursor: pointer;">清除並關閉</button>
+                                <b>📏 多點戰術測量結果</b><br>
+                                總累積距離：<span style="color: #22c55e; font-weight: bold; font-size: 15px;">${distanceText}</span><br>
+                                <small style="color: gray;">經過點數：${tempPoints.length} 個點</small><br>
+                                <button onclick="if(window.measureGroup){window.measureGroup.clearLayers();} tempPoints=[]; switchTool('pan');" style="margin-top: 6px; padding: 3px 8px; background: #22c55e; border: none; color: black; font-weight: bold; border-radius: 3px; cursor: pointer;">清除並關閉</button>
                             </div>
-                        `).openPopup(endLatLng);
+                        `).openPopup([lat, lng]);
 
-                        showToast(`📏 測量完成：${distanceText}`);
-                        tempPoints = []; // 重置點位以便再次測量
+                        showToast(`📏 累積總距離：${distanceText}（可繼續點擊延伸）`);
                     }
                     return;
                 }
