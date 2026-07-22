@@ -39,14 +39,11 @@ setInterval(() => {
 // --- API Endpoints ---
 app.get('/api/earthquake/data', async (req, res) => {
     try {
-        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0016-001?Authorization=${getApiKey()}`;
+        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization=${getApiKey()}`;
         const response = await axios.get(url, { timeout: 5000 });
         const records = response.data.records;
         const earthquakes = records?.Earthquake || records?.地震 || [];
-        
-        const latestEarthquake = earthquakes.length > 0 ? [earthquakes[0]] : [];
-        res.json(latestEarthquake);
-
+        res.json(earthquakes);
     } catch (error) { 
         console.error('地震 API 錯誤:', error.message);
         res.status(502).json({ error: "無法取得地震資料" }); 
@@ -88,6 +85,7 @@ io.on('connection', (socket) => {
             rooms[data.roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
         
+        // 方案 A 修改：直接將使用者名稱（字串）存入 userList
         if (!rooms[data.roomName].userList.includes(data.username)) {
             rooms[data.roomName].userList.push(data.username);
         }
@@ -147,22 +145,10 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         if (socket.myRoom && rooms[socket.myRoom]) {
+            // 方案 A 修改：透過斷線者的名稱（socket.myName）從陣列中過濾移除
             if (socket.myName) {
-                // 從名單中移除
                 rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
-
-                // 產生離開的系統聊天訊息並記錄到歷史中
-                const leaveMsg = { 
-                    sender: "系統通知", 
-                    message: `【${socket.myName}】已離開房間`, 
-                    time: getFormattedTime() 
-                };
-                rooms[socket.myRoom].chatHistory.push(leaveMsg);
-                
-                // 廣播給房間內所有人
-                io.to(socket.myRoom).emit('receive_chat', leaveMsg);
             }
-            
             io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
             io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
             io.to(socket.myRoom).emit('user_disconnected', socket.id);
