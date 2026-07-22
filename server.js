@@ -108,7 +108,28 @@ io.on('connection', (socket) => {
         // 傳送歷史聊天紀錄給剛加入的使用者
         socket.emit('history_chats', rooms[data.roomName].chatHistory);
     });
+socket.on('disconnect', () => {
+        if (socket.myRoom && socket.myName && rooms[socket.myRoom]) {
+            const userList = rooms[socket.myRoom].userList;
+            const index = userList.indexOf(socket.myName);
+            if (index !== -1) {
+                userList.splice(index, 1);
+            }
 
+            const leaveMsg = { 
+                sender: "系統通知", 
+                message: `【${socket.myName}】已離開房間`, 
+                time: getFormattedTime() 
+            };
+            rooms[socket.myRoom].chatHistory.push(leaveMsg);
+            
+            io.to(socket.myRoom).emit('receive_chat', leaveMsg);
+            io.to(socket.myRoom).emit('update_user_list', userList);
+            io.to(socket.myRoom).emit('update_user_count', userList.length);
+        }
+    });
+
+});
     // 即時位置廣播
     socket.on('update_location', (data) => {
         if (socket.myRoom) {
