@@ -747,6 +747,8 @@ function initDrawingEvents() {
                         showToast("✅ 已記錄起點，請點擊終點位置");
                     } else {
                         // 第二個點：計算距離並畫線
+} else {
+                        // 第二個點：計算距離並畫線
                         const startLatLng = L.latLng(tempPoints[0].lat, tempPoints[0].lng);
                         const endLatLng = L.latLng(lat, lng);
                         const distanceMeters = map.distance(startLatLng, endLatLng);
@@ -755,7 +757,13 @@ function initDrawingEvents() {
                             `${(distanceMeters / 1000).toFixed(2)} 公里 (km)` : 
                             `${distanceMeters.toFixed(1)} 公尺 (m)`;
 
-                        if (tempShape) map.removeLayer(tempShape);
+                        // 【修改重點】如果畫面上已經有上一次的測量圖形，先徹底移除
+                        if (tempShape) {
+                            map.removeLayer(tempShape);
+                            tempShape = null;
+                        }
+
+                        // 建立新的測量連線
                         tempShape = L.polyline([startLatLng, endLatLng], { color: '#39ff14', weight: 4, dashArray: '5, 5' }).addTo(map);
                         
                         tempShape.bindPopup(`
@@ -764,7 +772,7 @@ function initDrawingEvents() {
                                 直線距離：<span style="color: #22c55e; font-weight: bold; font-size: 15px;">${distanceText}</span><br>
                                 <small style="color: gray;">起點: ${tempPoints[0].lat.toFixed(4)}, ${tempPoints[0].lng.toFixed(4)}</small><br>
                                 <small style="color: gray;">終點: ${lat.toFixed(4)}, ${lng.toFixed(4)}</small><br>
-                                <button onclick="switchTool('pan')" style="margin-top: 6px; padding: 3px 8px; background: #22c55e; border: none; color: black; font-weight: bold; border-radius: 3px; cursor: pointer;">清除並關閉</button>
+                                <button onclick="if(tempShape){map.removeLayer(tempShape); tempShape=null;} switchTool('pan');" style="margin-top: 6px; padding: 3px 8px; background: #22c55e; border: none; color: black; font-weight: bold; border-radius: 3px; cursor: pointer;">清除並關閉</button>
                             </div>
                         `).openPopup(endLatLng);
 
