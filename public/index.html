@@ -8,6 +8,21 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/leaflet/leaflet.js"></script>
     <style>
+        #measure-tooltip {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #00ffcc;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            z-index: 1000;
+            pointer-events: none;
+            display: none;
+            border: 1px solid #00ffcc;
+        }
         body, html { 
             margin: 0; padding: 0; height: 100%; width: 100%; 
             font-family: 'Courier New', Courier, monospace, sans-serif; 
@@ -301,6 +316,7 @@
     </style>
 </head>
 <body>
+    <div id="measure-tooltip">點擊地圖開始測量距離（雙擊結束）</div>
     <!-- 登入面板 -->
     <div id="login-box">
         <h2>COP System協同地理圖資</h2>
@@ -355,6 +371,9 @@
             <button id="btn-weather" title="查詢即時氣象站資料" class="tool-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path><path d="M13 19l-2 3"></path><path d="M9 19l-2 3"></path><path d="M17 19l-2 3"></path></svg>
             </button>
+            <button class="tool-btn" id="btn-measure" onclick="switchTool('measure')" title="距離測量工具">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20M2 7h20M2 17h20M6 2v20M12 2v20M18 2v20"></path></svg>
+        </button>
         </div>
     </div>
     <!-- 搜尋輸入對話框 -->
@@ -577,7 +596,12 @@
             initWeatherFeatures(map);
         }
 
-        function switchTool(tool) {
+function switchTool(tool) {
+            // 如果切換到其他工具，先確保重置測距狀態
+            if (tool !== 'measure') {
+                resetMeasure();
+            }
+
             if ((currentTool === 'polyline' || currentTool === 'polygon') && tempPoints.length > 0) {
                 if (tempShape) {
                     map.removeLayer(tempShape);
@@ -598,6 +622,21 @@
             
             const id = 'btn-' + tool; 
             if (document.getElementById(id)) document.getElementById(id).classList.add('active'); 
+
+            // === 針對測距工具的特別處理 ===
+            if (tool === 'measure') {
+                measureActive = true;
+                measurePoints = [];
+                measureLayerGroup.addTo(map);
+                
+                const tooltip = document.getElementById('measure-tooltip');
+                if (tooltip) tooltip.style.display = 'block';
+                
+                if (map && map.dragging) map.dragging.disable();
+                showToast("請點擊地圖開始測量距離（雙擊結束）");
+                return; 
+            }
+            // ============================
 
             const isDrawing = (tool !== 'pan' && tool !== 'locate' && tool !== 'search');
             const finishBtn = document.getElementById('btn-finish');
@@ -651,7 +690,6 @@
                 showToast("已返回導覽模式");
             }
         }
-
         function previewEvtPhoto(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1809,6 +1847,58 @@ document.getElementById('btn-weather').addEventListener('click', async () => {
     function closeDataModal() {
         document.getElementById('data-modal').style.display = 'none';
     }
+    // 您的其他所有 JavaScript 程式碼...
+
+    // 最後把這段貼在 </script> 的上一行
+    if (typeof map !== 'undefined' && map) {
+        map.on('click', (e) => {
+            if (typeof currentTool === 'undefined' || currentTool !== 'measure' || !measureActive) return;
+
+            measurePoints.push(e.latlng);
+
+            L.circleMarker(e.latlng, {
+                radius: 5,
+                color: '#00ffcc',
+                fillColor: '#fff',
+                fillOpacity: 1
+            }).addTo(measureLayerGroup);
+
+            if (measurePoints.length > 1) {
+                L.polyline(measurePoints, {
+                    color: '#00ffcc',
+                    weight: 3,
+                    dashArray: '5, 5'
+                }).addTo(measureLayerGroup);
+
+                let totalDistance = 0;
+                for (let i = 0; i < measurePoints.length - 1; i++) {
+                    totalDistance += measurePoints[i].distanceTo(measurePoints[i + 1]);
+                }
+
+                let distanceStr = totalDistance > 1000 
+                    ? (totalDistance / 1000).toFixed(2) + ' 公里' 
+                    : Math.round(totalDistance) + ' 公尺';
+
+                L.marker(e.latlng, {
+                    icon: L.divIcon({
+                        className: 'measure-label',
+                        html: `<div style="background:rgba(0,0,0,0.8); color:#00ffcc; padding:2px 6px; border-radius:3px; font-size:12px; white-space:nowrap; border:1px solid #00ffcc;">${distanceStr}</div>`,
+                        iconSize: [60, 20],
+                        iconAnchor: [-10, 15]
+                    })
+                }).addTo(measureLayerGroup);
+            }
+        });
+
+        map.on('dblclick', (e) => {
+            if (typeof currentTool === 'undefined' || currentTool !== 'measure') return;
+            L.DomEvent.stopPropagation(e);
+            resetMeasure();
+            currentTool = null;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+        });
+    }
+</script>    
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
     <div style="padding:15px; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
