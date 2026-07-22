@@ -883,7 +883,7 @@ function initDrawingEvents() {
             }, { passive: true });
         }
 
-        async function login() {
+ async function login() {
             const userIn = document.getElementById('username').value.trim();
             const passIn = document.getElementById('room-password').value;
             const adminSecIn = document.getElementById('admin-secret').value;
@@ -911,7 +911,12 @@ function initDrawingEvents() {
                         document.getElementById('admin-clear-btn').style.display = 'block';
                     }
                     
-                    initMapInstance(); setTimeout(() => { if (map) map.invalidateSize(); }, 300); initSocketAndLayers(); 
+                    initMapInstance(); 
+                    setTimeout(() => { if (map) map.invalidateSize(); }, 300); 
+                    
+                    initSocketAndLayers(); 
+                    initChatAndUsersSocket(); // 👈 加上這行，確保登入後順便啟動聊天與在線用戶監聽！
+
                 } else { document.getElementById('login-error').innerText = data.message; }
             } catch (err) { document.getElementById('login-error').innerText = "連線後端錯誤！"; }
         }
