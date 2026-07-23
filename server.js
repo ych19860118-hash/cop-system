@@ -64,30 +64,45 @@ app.get('/api/weather/data', async (req, res) => {
 app.post('/api/login', (req, res) => {
     const { username, roomName, roomPassword } = req.body;
     if (!username) return res.json({ success: false, message: "請輸入暱稱" });
-    if (!rooms[roomName]) rooms[roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
+    
+    if (!rooms[roomName]) {
+        rooms[roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
+    }
 
     const room = rooms[roomName];
     const isPublic = roomName.includes("無須密碼");
+    
+    // 1. 檢查密碼
     if (!isPublic && room.password !== "" && room.password !== roomPassword) {
         return res.json({ success: false, message: "密碼錯誤" });
     }
+
+    // 2. 【防呆機制】檢查該頻道內是否已經有相同暱稱的使用者
+    if (room.userList.includes(username)) {
+        return res.json({ success: false, message: "此暱稱在此頻道中已被使用，請更換暱稱" });
+    }
+
     res.json({ success: true, username, roomName });
 });
 
 // --- Socket.io ---
 io.on('connection', (socket) => {
     socket.on('join_room', (data) => {
-        socket.join(data.roomName);
-        socket.myName = data.username;
-        socket.myRoom = data.roomName;
-
         if (!rooms[data.roomName]) {
             rooms[data.roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
-        
-        if (!rooms[data.roomName].userList.includes(data.username)) {
-            rooms[data.roomName].userList.push(data.username);
+
+        // 雙重檢查：防止透過 Socket 直接繞過 API 登入
+        if (rooms[data.roomName].userList.includes(data.username)) {
+            socket.emit('receive_chat', { sender: "系統通知", message: "此暱稱已被使用，連線失敗", time: getFormattedTime() });
+            return;
         }
+
+        socket.join(data.roomName);
+        socket.myName = data.username;
+        socket.myRoom = data.roomName;
+        
+        rooms[data.roomName].userList.push(data.username);
         rooms[data.roomName].lastActive = Date.now();
         
         const joinMsg = { sender: "系統通知", message: `【${data.username}】已加入房間`, time: getFormattedTime() };
@@ -97,7 +112,7 @@ io.on('connection', (socket) => {
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         
-        // 【新增】廣播給同房間其他人：某人進入頻道
+        // 廣播給同房間其他人：某人進入頻道
         socket.to(data.roomName).emit('user_notification', {
             name: data.username,
             action: 'joined'
@@ -144,7 +159,10 @@ io.on('connection', (socket) => {
         if (socket.myRoom && rooms[socket.myRoom]) {
             rooms[socket.myRoom].lastActive = Date.now();
             rooms[socket.myRoom].objects = rooms[socket.myRoom].objects.filter(o => o.id !== objId);
-            io.to(socket.myRoom).emit('object_deleted', objId);        }
+            
+            // 已修正為與前端一致的事件名稱：object_deleted
+            io.to(socket.myRoom).emit('object_deleted', objId);
+        }
     });
 
     socket.on('disconnect', () => {
@@ -152,7 +170,7 @@ io.on('connection', (socket) => {
             if (socket.myName) {
                 rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
                 
-                // 【新增】廣播給同房間其他人：某人離開頻道
+                // 廣播給同房間其他人：某人離開頻道
                 io.to(socket.myRoom).emit('user_notification', {
                     name: socket.myName,
                     action: 'left'
