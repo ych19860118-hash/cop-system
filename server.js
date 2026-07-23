@@ -85,7 +85,6 @@ io.on('connection', (socket) => {
             rooms[data.roomName] = { password: "", objects: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
         
-        // 方案 A 修改：直接將使用者名稱（字串）存入 userList
         if (!rooms[data.roomName].userList.includes(data.username)) {
             rooms[data.roomName].userList.push(data.username);
         }
@@ -97,6 +96,12 @@ io.on('connection', (socket) => {
         
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
+        
+        // 【新增】廣播給同房間其他人：某人進入頻道
+        socket.to(data.roomName).emit('user_notification', {
+            name: data.username,
+            action: 'joined'
+        });
         
         // 傳送歷史圖資物件
         socket.emit('history_objects', rooms[data.roomName].objects);
@@ -145,9 +150,14 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         if (socket.myRoom && rooms[socket.myRoom]) {
-            // 方案 A 修改：透過斷線者的名稱（socket.myName）從陣列中過濾移除
             if (socket.myName) {
                 rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
+                
+                // 【新增】廣播給同房間其他人：某人離開頻道
+                io.to(socket.myRoom).emit('user_notification', {
+                    name: socket.myName,
+                    action: 'left'
+                });
             }
             io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
             io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
