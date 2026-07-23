@@ -854,7 +854,7 @@ function clearMeasure() {
             switchTool('pan');
         }
 
-        function initDrawingEvents() {
+       function initDrawingEvents() {
             map.on('click', function(e) {
                 if (currentTool === 'event') {
                     pendingEventLatLng = e.latlng;
@@ -934,39 +934,19 @@ function clearMeasure() {
             }, { passive: true });
         }
 
-        async function login() {
-            const userIn = document.getElementById('username').value.trim();
-            const passIn = document.getElementById('room-password').value;
-            const adminSecIn = document.getElementById('admin-secret').value;
-            const roomSel = document.getElementById('room-select').value;
-            let targetRoom = roomSel === 'custom' ? document.getElementById('custom-room-name').value.trim() : roomSel;
-            if(!userIn) { alert("請輸入通報暱稱！"); return; }
-            try {
-                const res = await fetch(`${SERVER_URL}/api/login`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ username: userIn, roomPassword: passIn, roomName: targetRoom, adminSecret: adminSecIn })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    currentUser = data.username; currentRoom = data.roomName;
-                    document.getElementById('login-box').style.display = 'none';
-                    document.getElementById('map').style.display = 'block'; 
-                    document.getElementById('custom-toolbar').style.display = 'flex'; 
-                    document.getElementById('toggle-info-btn').style.display = 'flex';
-                    document.getElementById('toggle-chat-btn').style.display = 'flex';
-                    document.getElementById('toggle-users-btn').style.display = 'flex';
-                    document.getElementById('toggle-help-btn').style.display = 'flex';
-                    document.getElementById('state-room').innerText = currentRoom;
-                    
-                    if (currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]')) {
-                        document.getElementById('admin-clear-btn').style.display = 'block';
-                    }
-                    
-                    initMapInstance(); setTimeout(() => { if (map) map.invalidateSize(); }, 300); initSocketAndLayers(); 
-                } else { document.getElementById('login-error').innerText = data.message; }
-            } catch (err) { document.getElementById('login-error').innerText = "連線後端錯誤！"; }
+        // 【新增/確保】集中處理取消與清除半成品圖形的函式
+        function finishCurrentDrawing() {
+            if (typeof tempShape !== 'undefined' && tempShape) {
+                map.removeLayer(tempShape);
+                tempShape = null;
+            }
+            if (typeof tempPoints !== 'undefined') {
+                tempPoints = [];
+            }
+            if (typeof switchTool === 'function') {
+                switchTool('pan');
+            }
         }
-
         function initSocketAndLayers() {
             socket = io(SERVER_URL);
             socket.emit('join_room', { roomName: currentRoom, username: currentUser });
