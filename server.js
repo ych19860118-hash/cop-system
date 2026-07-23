@@ -39,7 +39,7 @@ setInterval(() => {
 // --- API Endpoints ---
 app.get('/api/earthquake/data', async (req, res) => {
     try {
-        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization=${getApiKey()}`;
+        const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0016-001?Authorization=${getApiKey()}`;
         const response = await axios.get(url, { timeout: 5000 });
         const records = response.data.records;
         const earthquakes = records?.Earthquake || records?.地震 || [];
