@@ -854,7 +854,7 @@ function clearMeasure() {
             switchTool('pan');
         }
 
-function initDrawingEvents() {
+ function initDrawingEvents() {
             map.on('click', function(e) {
                 if (currentTool === 'event') {
                     pendingEventLatLng = e.latlng;
@@ -932,20 +932,6 @@ function initDrawingEvents() {
                     touchTimer = null;
                 }
             }, { passive: true });
-        }
-
-        // 清除未完成半成品圖形的函式
-        function finishCurrentDrawing() {
-            if (typeof tempShape !== 'undefined' && tempShape) {
-                map.removeLayer(tempShape);
-                tempShape = null;
-            }
-            if (typeof tempPoints !== 'undefined') {
-                tempPoints = [];
-            }
-            if (typeof switchTool === 'function') {
-                switchTool('pan');
-            }
         }
 
         async function login() {
