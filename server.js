@@ -144,8 +144,7 @@ io.on('connection', (socket) => {
         if (socket.myRoom && rooms[socket.myRoom]) {
             rooms[socket.myRoom].lastActive = Date.now();
             rooms[socket.myRoom].objects = rooms[socket.myRoom].objects.filter(o => o.id !== objId);
-            io.to(socket.myRoom).emit('object_removed', objId);
-        }
+            io.to(socket.myRoom).emit('object_deleted', objId);        }
     });
 
     socket.on('disconnect', () => {
