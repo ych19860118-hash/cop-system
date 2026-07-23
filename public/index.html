@@ -298,6 +298,15 @@
             color: #0d0e10 !important;
             border-color: #39ff14 !important;
         }
+        .measure-tooltip {
+            background: rgba(0, 0, 0, 0.8);
+            color: #39ff14;
+            border: 1px solid #39ff14;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -346,6 +355,12 @@
         <button class="tool-btn" id="btn-search" onclick="openSearchModal()" title="地址或座標搜尋定位" style="color: #39ff14;">
             🔍
         </button>
+        <button id="btn-measure" onclick="toggleMeasureTool()" title="多點距離量測">
+    📏
+</button>
+<button id="btn-clear-measure" onclick="clearMeasure()" title="清除量測">
+    🗑️
+</button>
         <div class="sidebar-tool-group" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; width: 100%;">
             <!-- 地震按鈕：使用專屬地震波動 SVG -->
             <button id="btn-earthquake" title="查詢最新地震資料" class="tool-btn">
@@ -475,6 +490,97 @@
     <div id="toast-container"></div>
     <div id="map"></div>
     <script>
+        let isMeasuring = false;
+let measurePoints = [];
+let measurePolyline = null;
+let measureTooltips = [];
+
+// 切換量測工具開關的函式（你可以綁定到 UI 上的某個按鈕）
+function toggleMeasureTool() {
+    isMeasuring = true;
+    measurePoints = [];
+    if (map) {
+        map.getContainer().style.cursor = 'crosshair'; // 改變滑鼠游標為十字星
+    }
+    showToast("📏 已啟動距離量測：請在地圖上依序點擊多個點（雙擊結束量測）");
+}
+
+// 監聽地圖點擊事件（可在初始化地圖時加入）
+function initMeasureTool(mapInstance) {
+    mapInstance.on('click', function(e) {
+        if (!isMeasuring) return;
+        
+        const latlng = e.latlng;
+        measurePoints.push(latlng);
+
+        // 畫出頂點的小標記
+        const dot = L.circleMarker(latlng, {
+            radius: 5,
+            color: '#ff5722',
+            fillColor: '#ff5722',
+            fillOpacity: 1
+        }).addTo(mapInstance);
+        measureTooltips.push(dot);
+
+        // 如果已經有兩個點以上，更新或建立折線
+        if (measurePoints.length > 1) {
+            if (!measurePolyline) {
+                measurePolyline = L.polyline(measurePoints, {
+                    color: '#ff5722',
+                    weight: 4,
+                    dashArray: '5, 5' // 虛線樣式
+                }).addTo(mapInstance);
+            } else {
+                measurePolyline.setLatLngs(measurePoints);
+            }
+
+            // 計算總距離
+            let totalDistance = 0;
+            for (let i = 0; i < measurePoints.length - 1; i++) {
+                totalDistance += measurePoints[i].distanceTo(measurePoints[i + 1]);
+            }
+
+            // 格式化距離顯示 (公尺或公里)
+            let distanceText = totalDistance >= 1000 
+                ? (totalDistance / 1000).toFixed(2) + ' 公里' 
+                : Math.round(totalDistance) + ' 公尺';
+
+            // 在最新一個點上顯示累積距離提示
+            dot.bindTooltip(`總距離: ${distanceText}`, {
+                permanent: true,
+                direction: 'top',
+                className: 'measure-tooltip'
+            }).openTooltip();
+        }
+    });
+
+    // 雙擊結束量測
+    mapInstance.on('dblclick', function(e) {
+        if (!isMeasuring) return;
+        L.DomEvent.stopPropagation(e); // 避免觸發預設的放大
+        finishMeasuring();
+    });
+}
+
+// 結束並清除量測狀態
+function finishMeasuring() {
+    isMeasuring = false;
+    if (map) {
+        map.getContainer().style.cursor = '';
+    }
+    showToast("📏 距離量測已完成");
+}
+
+// 清除畫面上所有的量測圖資
+function clearMeasure() {
+    if (measurePolyline) {
+        map.removeLayer(measurePolyline);
+        measurePolyline = null;
+    }
+    measureTooltips.forEach(marker => map.removeLayer(marker));
+    measureTooltips = [];
+    measurePoints = [];
+}
         const SERVER_URL = window.location.origin; 
         let socket, currentUser = "", currentRoom = "", map, allMapLayers = {};
         let allEventLayers = {};
