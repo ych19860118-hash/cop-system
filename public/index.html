@@ -1737,37 +1737,37 @@ document.getElementById('btn-earthquake').addEventListener('click', async () => 
             return;
         }
 
-        let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
-        earthquakes.slice(0, 10).forEach(eq => {
-            const info = eq.EarthquakeInfo || {};
-            const time = info.OriginTime || eq.ReportTime || '時間未知';
-            
-            // 嘗試多種可能的路徑取得規模，如果都沒有就從 ReportContent 文字中抓取
-            let magnitude = info.Magnitude?.MagnitudeValue || info.EarthquakeMagnitude?.[0]?.MagnitudeValue || 'N/A';
-            const content = eq.ReportContent || info.Location || '';
-            
-            if (magnitude === 'N/A' && content.includes('規模')) {
-                const match = content.match(/規模\s*([0-9.]+)/);
-                if (match) magnitude = match[1];
-            }
+        // 只取第一筆資料
+        const eq = earthquakes[0];
+        const info = eq.EarthquakeInfo || {};
+        const time = info.OriginTime || eq.ReportTime || '時間未知';
+        
+        let magnitude = info.Magnitude?.MagnitudeValue || info.EarthquakeMagnitude?.[0]?.MagnitudeValue || 'N/A';
+        const content = eq.ReportContent || info.Location || '';
+        
+        if (magnitude === 'N/A' && content.includes('規模')) {
+            const match = content.match(/規模\s*([0-9.]+)/);
+            if (match) magnitude = match[1];
+        }
 
-            const depth = info.FocalDepth || '未知';
-            const location = info.Location || content;
+        const depth = info.FocalDepth || '未知';
+        const location = info.Location || content;
 
-            html += `<li style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
+        // 直接組合成單筆資料的 HTML 結構（不需要用迴圈和 ul/li）
+        let html = `
+            <div style="padding: 4px 0; line-height: 1.8;">
                 <strong>${time.replace('T', ' ').substring(0, 16)}</strong><br>
                 📍 <strong>震央：</strong>${location}<br>
                 ⚡ <strong>規模：</strong>${magnitude} 級 ｜ 🌊 <strong>深度：</strong>${depth} 公里
-            </li>`;
-        });
-        html += '</ul>';
+            </div>
+        `;
+        
         modalBody.innerHTML = html;
     } catch (error) {
         console.error('無法取得地震資料', error);
         modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得地震資料，請稍後再試。</p>";
     }
 });
-
 // 查詢氣象資料
 document.getElementById('btn-weather').addEventListener('click', async () => {
     try {
