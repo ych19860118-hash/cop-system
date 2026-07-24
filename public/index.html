@@ -346,7 +346,7 @@
         <button class="tool-btn" id="btn-polygon" onclick="switchTool('polygon')" title="繪製多邊形">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 18.5 20.5 5.5 20.5 2 8.5 12 2"></polygon></svg>
         </button>
-<button class="tool-btn" id="btn-finish" onclick="finishCurrentDrawing()" title="完成繪製/完成量測" style="display: none;">
+<button class="tool-btn" id="btn-finish" onclick="finishCurrentDrawing()" title="完成繪製/完成量測" style="visibility: hidden; pointer-events: none;">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#39ff14" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="20 6 9 17 4 12"></polyline>
     </svg>
@@ -518,10 +518,11 @@ function toggleMeasureTool() {
         map.getContainer().style.cursor = 'crosshair';
     }
     
-    // 【新增】啟動量測時，讓打勾按鈕顯示出來
+    // 讓打勾按鈕顯示並恢復點擊
     const finishBtn = document.getElementById('btn-finish');
     if (finishBtn) {
-        finishBtn.style.display = 'flex'; // 依照你原本工具列按鈕的 display 屬性調整 (flex 或 block)
+        finishBtn.style.visibility = 'visible';
+        finishBtn.style.pointerEvents = 'auto';
     }
 
     showToast("📏 已啟動距離量測：請在地圖上依序點擊多個點，完成後請點擊工具列的打勾按鈕結束");
@@ -844,23 +845,22 @@ function clearMeasure() {
         }
 
 function finishCurrentDrawing() {
-    // 【新增這裡】如果是距離量測模式正在進行中，點擊勾勾就是結束量測！
     if (typeof isMeasuring !== 'undefined' && isMeasuring) {
         isMeasuring = false;
         if (map) {
-            map.getContainer().style.cursor = ''; // 恢復原本游標
+            map.getContainer().style.cursor = '';
         }
         
-        // 隱藏工具列上的打勾按鈕
+        // 隱藏打勾按鈕但不影響排版
         const finishBtn = document.getElementById('btn-finish');
         if (finishBtn) {
-            finishBtn.style.display = 'none';
+            finishBtn.style.visibility = 'hidden';
+            finishBtn.style.pointerEvents = 'none';
         }
         
         showToast("✅ 已完成距離量測");
-        return; // 直接攔截，不往下執行圖形繪製的邏輯
+        return;
     }
-
     // --- 以下保持你原本的圖形繪製結束邏輯 ---
     if (tempPoints.length < 2) {
         showToast("⚠️ 至少需要兩個點才能完成線條或多邊形繪製");
