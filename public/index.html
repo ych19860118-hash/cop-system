@@ -331,6 +331,11 @@
         <button class="tool-btn" id="btn-marker" onclick="switchTool('marker')" title="新增回報點">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path><circle cx="12" cy="10" r="3"></circle></svg>
         </button>
+                <button class="tool-btn" id="btn-finish" onclick="finishCurrentDrawing()" title="完成繪製/完成量測" style="visibility: hidden; pointer-events: none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#39ff14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        </button>
         <button class="tool-btn" id="btn-event" onclick="switchTool('event')" title="即時事件回報與照片上傳">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
         </button>
@@ -345,11 +350,6 @@
         </button>
         <button class="tool-btn" id="btn-polygon" onclick="switchTool('polygon')" title="繪製多邊形">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 18.5 20.5 5.5 20.5 2 8.5 12 2"></polygon></svg>
-        </button>
-        <button class="tool-btn" id="btn-finish" onclick="finishCurrentDrawing()" title="完成繪製/完成量測" style="visibility: hidden; pointer-events: none;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#39ff14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
         </button>
         <button class="tool-btn" id="btn-locate" onclick="openGPSModal()" title="我的戰術 GPS 定位" style="margin-top: 6px !important;">
             GPS
@@ -518,11 +518,10 @@ function toggleMeasureTool() {
         map.getContainer().style.cursor = 'crosshair';
     }
     
-    // 讓打勾按鈕顯示並恢復點擊
+    // 顯示打勾按鈕
     const finishBtn = document.getElementById('btn-finish');
     if (finishBtn) {
-        finishBtn.style.visibility = 'visible';
-        finishBtn.style.pointerEvents = 'auto';
+        finishBtn.style.display = 'flex'; // 或 block
     }
 
     showToast("📏 已啟動距離量測：請在地圖上依序點擊多個點，完成後請點擊工具列的打勾按鈕結束");
@@ -851,11 +850,10 @@ function finishCurrentDrawing() {
             map.getContainer().style.cursor = '';
         }
         
-        // 隱藏打勾按鈕但不影響排版
+        // 隱藏打勾按鈕
         const finishBtn = document.getElementById('btn-finish');
         if (finishBtn) {
-            finishBtn.style.visibility = 'hidden';
-            finishBtn.style.pointerEvents = 'none';
+            finishBtn.style.display = 'none';
         }
         
         showToast("✅ 已完成距離量測");
