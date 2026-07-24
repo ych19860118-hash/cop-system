@@ -1738,8 +1738,7 @@ mapInstance.on('click', function(e) {
     const popup = L.popup()
         .setLatLng(e.latlng)
         .setContent(`<div style="font-family: sans-serif; font-size:13px; padding: 5px;">⏳ 正在查詢 [${lat}, ${lng}] 的天氣與熱危害指標...</div>`)
-        .openOn(mapInstance);le="font-family: sans-serif; font-size:13px; padding: 5px;">⏳ 正在查詢 [${lat}, ${lng}] 的天氣與熱危害指標...</div>`)
-                    .openOn(mapInstance);
+        .openOn(mapInstance);
 
                 fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`)
                     .then(response => {
