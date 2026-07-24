@@ -515,7 +515,15 @@ function toggleMeasureTool() {
     if (map) {
         map.getContainer().style.cursor = 'crosshair'; // 改變滑鼠游標為十字星
     }
-    showToast("📏 已啟動距離量測：請在地圖上依序點擊多個點（雙擊結束量測）");
+    
+    // 【新增】啟動量測時，顯示工具列上的「完成」打勾按鈕
+    const finishBtn = document.getElementById('btn-finish');
+    if (finishBtn) {
+        finishBtn.style.display = 'flex'; // 依照你原本工具列按鈕的顯示風格調整 (block 或 flex)
+    }
+
+    // 【修改提示文字】改為提示使用打勾按鈕結束
+    showToast("📏 已啟動距離量測：請在地圖上依序點擊多個點，完成後請點擊工具列的打勾按鈕結束");
 }
 
 // 監聽地圖點擊事件（可在初始化地圖時加入）
