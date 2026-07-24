@@ -513,13 +513,13 @@ function toggleMeasureTool() {
     isMeasuring = true;
     measurePoints = [];
     if (map) {
-        map.getContainer().style.cursor = 'crosshair'; // 改變滑鼠游標為十字星
+        map.getContainer().style.cursor = 'crosshair';
     }
     
-    // 【確保這裡寫的是 block 或 inline-block】
+    // 【新增】啟動量測時，讓打勾按鈕顯示出來
     const finishBtn = document.getElementById('btn-finish');
     if (finishBtn) {
-        finishBtn.style.display = 'block'; 
+        finishBtn.style.display = 'flex'; // 依照你原本工具列按鈕的 display 屬性調整 (flex 或 block)
     }
 
     showToast("📏 已啟動距離量測：請在地圖上依序點擊多個點，完成後請點擊工具列的打勾按鈕結束");
