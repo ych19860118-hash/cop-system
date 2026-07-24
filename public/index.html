@@ -544,11 +544,9 @@ function toggleMeasureTool() {
         finishBtn.style.display = 'flex'; // 或 block
     }
 
-    showToast("📏 已啟動距離量測：請在地圖上依序點擊多個點，完成後可點擊打勾按鈕，或在終點「連續點擊兩下」結束");
+    showToast("📏 已啟動距離量測：請在地圖上依序點擊多個點，完成後請點擊工具列的打勾按鈕結束");
 }
-
-// 讓地圖在量測狀態下，支援「雙擊」直接結束量測（特別適合手機觸控操作）
-if (typeof map !== 'undefined' && map && !window.hasMeasureDblClick) {
+        if (typeof map !== 'undefined' && map && !window.hasMeasureDblClick) {
     window.hasMeasureDblClick = true; // 避免重複綁定事件
     map.on('dblclick', function(e) {
         if (typeof isMeasuring !== 'undefined' && isMeasuring) {
