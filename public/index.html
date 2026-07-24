@@ -1726,15 +1726,19 @@ function clearMeasure() {
                 .catch(err => console.error("RainViewer 載入失敗:", err));
 
             // 地圖點擊氣象與熱危害查詢
-            mapInstance.on('click', function(e) {
-                if (currentTool !== 'pan' && currentTool !== 'locate') return;
+mapInstance.on('click', function(e) {
+    // 【明確的修改位置：加在原本的 if 判斷式正下方，或是與它合併】
+    if (typeof isMeasuring !== 'undefined' && isMeasuring) return;
+    
+    if (currentTool !== 'pan' && currentTool !== 'locate') return;
 
-                const lat = e.latlng.lat.toFixed(4);
-                const lng = e.latlng.lng.toFixed(4);
+    const lat = e.latlng.lat.toFixed(4);
+    const lng = e.latlng.lng.toFixed(4);
 
-                const popup = L.popup()
-                    .setLatLng(e.latlng)
-                    .setContent(`<div style="font-family: sans-serif; font-size:13px; padding: 5px;">⏳ 正在查詢 [${lat}, ${lng}] 的天氣與熱危害指標...</div>`)
+    const popup = L.popup()
+        .setLatLng(e.latlng)
+        .setContent(`<div style="font-family: sans-serif; font-size:13px; padding: 5px;">⏳ 正在查詢 [${lat}, ${lng}] 的天氣與熱危害指標...</div>`)
+        .openOn(mapInstance);le="font-family: sans-serif; font-size:13px; padding: 5px;">⏳ 正在查詢 [${lat}, ${lng}] 的天氣與熱危害指標...</div>`)
                     .openOn(mapInstance);
 
                 fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`)
