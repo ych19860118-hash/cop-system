@@ -949,23 +949,29 @@ function clearMeasure() {
             switchTool('pan');
         }
 
-        function submitEventReport() {
-            if (!pendingEventLatLng) return;
-            const category = document.getElementById('evt-category').value;
-            const description = document.getElementById('evt-desc').value.trim();
+function submitEventReport() {
+    if (!pendingEventLatLng) return;
+    const category = document.getElementById('evt-category').value;
+    const description = document.getElementById('evt-desc').value.trim();
 
-            const eventData = {
-                category: category,
-                description: description,
-                lat: pendingEventLatLng.lat,
-                lng: pendingEventLatLng.lng,
-                photoData: pendingPhotoBase64
-            };
+    // 檢查描述是否為空
+    if (!description) {
+        showToast("⚠️ 請輸入事件詳細描述");
+        return;
+    }
 
-            socket.emit('new_event', eventData);
-            closeEventModal();
-            showToast("✅ 事件回報已廣播至頻道");
-        }
+    const eventData = {
+        category: category,
+        description: description,
+        lat: pendingEventLatLng.lat,
+        lng: pendingEventLatLng.lng,
+        photoData: pendingPhotoBase64
+    };
+
+    socket.emit('new_event', eventData);
+    closeEventModal();
+    showToast("✅ 事件回報已廣播至頻道");
+}
 
 function finishCurrentDrawing() {
     if (typeof isMeasuring !== 'undefined' && isMeasuring) {
