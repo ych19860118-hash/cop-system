@@ -1427,31 +1427,22 @@ function finishCurrentDrawing() {
             const isCurrentlyDrawing = (currentTool !== 'pan' && currentTool !== 'locate' && currentTool !== 'search');
 
             // 👇 定義全域預設粗細 (若資料中有帶入 data.weight 則優先使用，否則預設為 6)
-            const shapeWeight = (data.weight !== undefined) ? data.weight : 6;
-
             if (data.shapeType === "marker") {
                 const svgColor = data.color || "#3388ff";
-                const customMarkerIcon = L.divIcon({
-                    html: `<svg width="30" height="42" viewBox="0 0 24 24" fill="${svgColor}" stroke="#141619" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.6)); position: absolute; left: -15px; top: -42px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3" fill="#141619"></circle></svg>`,
-                    className: 'tactical-svg-marker'
-                });
+                const customMarkerIcon = L.divIcon({ ... });
                 mainLayer = L.marker(pts, { icon: customMarkerIcon, draggable: (isMyObject || isAdmin) }); 
                 centerLatLng = L.latLng(pts);
             } else if (data.shapeType === "polyline") {
-                // 👈 套用 shapeWeight 變數
-                mainLayer = L.polyline(pts, { color: data.color, weight: shapeWeight });
+                mainLayer = L.polyline(pts, { color: data.color, weight: 6 }); // 👈 原本這裡寫死 weight: 6
                 centerLatLng = L.polyline(pts).getBounds().getCenter();
             } else if (data.shapeType === "rectangle") {
-                // 👈 套用 shapeWeight 變數
-                mainLayer = L.rectangle(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: shapeWeight });
+                mainLayer = L.rectangle(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 }); // 👈 寫死 weight: 3
                 centerLatLng = L.rectangle(pts).getBounds().getCenter();
             } else if (data.shapeType === "circle") {
-                // 👈 圓形也可以套用 shapeWeight 變數控制邊框粗細
-                mainLayer = L.circle(pts, { radius: data.radius, color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: shapeWeight });
+                mainLayer = L.circle(pts, { radius: data.radius, color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 }); // 👈 寫死 weight: 3
                 centerLatLng = L.latLng(pts);
             } else if (data.shapeType === "polygon") {
-                // 👈 套用 shapeWeight 變數
-                mainLayer = L.polygon(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: shapeWeight });
+                mainLayer = L.polygon(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 }); // 👈 寫死 weight: 3
                 centerLatLng = L.polygon(pts).getBounds().getCenter();
             }
             if (!mainLayer) return;
