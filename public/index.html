@@ -6,7 +6,7 @@
     <title>COP System協同地理圖資</title>
     <link rel="stylesheet" href="/leaflet/leaflet.css" />
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/leaflet/leaflet.js"></script>
+    <script src="/leaflet/let fillOptionHTML = "";"></script>
     <style>
         body, html { 
             margin: 0; padding: 0; height: 100%; width: 100%; 
@@ -1426,6 +1426,9 @@ function finishCurrentDrawing() {
             const currentFillOpacity = (data.fillOpacity !== undefined) ? data.fillOpacity : 0;
             const isCurrentlyDrawing = (currentTool !== 'pan' && currentTool !== 'locate' && currentTool !== 'search');
 
+            // 👇 定義全域預設粗細 (若資料中有帶入 data.weight 則優先使用，否則預設為 6)
+            const shapeWeight = (data.weight !== undefined) ? data.weight : 6;
+
             if (data.shapeType === "marker") {
                 const svgColor = data.color || "#3388ff";
                 const customMarkerIcon = L.divIcon({
@@ -1435,16 +1438,20 @@ function finishCurrentDrawing() {
                 mainLayer = L.marker(pts, { icon: customMarkerIcon, draggable: (isMyObject || isAdmin) }); 
                 centerLatLng = L.latLng(pts);
             } else if (data.shapeType === "polyline") {
-                mainLayer = L.polyline(pts, { color: data.color, weight: 6 });
+                // 👈 套用 shapeWeight 變數
+                mainLayer = L.polyline(pts, { color: data.color, weight: shapeWeight });
                 centerLatLng = L.polyline(pts).getBounds().getCenter();
             } else if (data.shapeType === "rectangle") {
-                mainLayer = L.rectangle(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 });
+                // 👈 套用 shapeWeight 變數
+                mainLayer = L.rectangle(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: shapeWeight });
                 centerLatLng = L.rectangle(pts).getBounds().getCenter();
             } else if (data.shapeType === "circle") {
-                mainLayer = L.circle(pts, { radius: data.radius, color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 });
+                // 👈 圓形也可以套用 shapeWeight 變數控制邊框粗細
+                mainLayer = L.circle(pts, { radius: data.radius, color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: shapeWeight });
                 centerLatLng = L.latLng(pts);
             } else if (data.shapeType === "polygon") {
-                mainLayer = L.polygon(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 });
+                // 👈 套用 shapeWeight 變數
+                mainLayer = L.polygon(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: shapeWeight });
                 centerLatLng = L.polygon(pts).getBounds().getCenter();
             }
             if (!mainLayer) return;
@@ -1541,6 +1548,7 @@ function finishCurrentDrawing() {
 
                 if (isMyObject || isAdmin) {
                     let fillOptionHTML = "";
+                    let weightOptionHTML = ""; // 👈 新增：線條粗細選單變數
                     if (data.shapeType !== "marker" && data.shapeType !== "polyline") {
                         fillOptionHTML = `
                             <label>填滿模式：</label>
@@ -1550,6 +1558,46 @@ function finishCurrentDrawing() {
                                 <option value="0.6" ${currentFillOpacity === 0.6 ? 'selected':''}>深色填滿 (60%)</option>
                             </select>`;
                     }
+                    if (data.shapeType === "polyline" || data.shapeType === "polygon" || data.shapeType === "rectangle") {
+    const currentWeight = mainLayer.options.weight || 3;
+    weightOptionHTML = `
+        <div>
+            <label>線條粗細：</label>
+            <select id="edit-weight-${data.id}">
+                <option value="3" ${currentWeight === 3 ? 'selected':''}>細 (3px)</option>
+                <option value="6" ${currentWeight === 6 ? 'selected':''}>中 (6px)</option>
+                <option value="10" ${currentWeight === 10 ? 'selected':''}>粗 (10px)</option>
+                <option value="16" ${currentWeight === 16 ? 'selected':''}>特粗 (16px)</option>
+            </select>
+        </div>`;
+}
+
+// 組合 Popup 內容時，把 weightOptionHTML 放進去
+popupContent = `
+    <div class="popup-menu" id="popup-root-${data.id}">
+        ${adminBadge}
+        <b>編輯${isMyObject ? '您回報的' : ''}圖形/災情</b><br>
+        <small style="color:gray;">最後異動：${displayTime}</small><br><br>
+        <label>修改描述：</label>
+        <input type="text" id="edit-msg-${data.id}" value="${data.message}">
+        <div>
+            <label>邊框顏色變更：</label>
+            <select id="edit-color-${data.id}">
+                <option value="#3388ff" ${data.color === '#3388ff'?'selected':''}>藍色 (一般區域)</option>
+                <option value="#dc3545" ${data.color === '#dc3545'?'selected':''}>紅色 (警戒區域)</option>
+                <option value="#28a745" ${data.color === '#28a745'?'selected':''}>綠色 (安全區域)</option>
+                <option value="#ffc107" ${data.color === '#ffc107'?'selected':''}>黃色 (注意區域)</option>
+            </select>
+        </div>
+        ${weightOptionHTML} <!-- 👈 插入粗細選單 -->
+        ${fillOptionHTML}
+        <button onclick="updateObject('${data.id}')">儲存修改</button>
+        <button onclick="deleteObject('${data.id}')" class="del-btn">撤銷/刪除此圖形</button>
+        
+        <div id="popup-weather-${data.id}" style="margin-top:12px; border-top:1px dashed #2d3748; padding-top:8px; color:#cbd5e0;">
+            ⏳ 正在查詢此點熱危害指標...
+        </div>
+    </div>`;
                     const adminBadge = (isAdmin && !isMyObject) ? `<b style="color:#dc3545;">⚠️ 管理員權限 (編輯他人圖資)</b><br>` : "";
 
                     popupContent = `
@@ -1791,7 +1839,8 @@ function finishCurrentDrawing() {
             const newColor = document.getElementById(`edit-color-${objectId}`).value;
             const fillSelect = document.getElementById(`edit-fill-${objectId}`);
             const newFillOpacity = fillSelect ? parseFloat(fillSelect.value) : 0;
-
+            const weightSelect = document.getElementById(`edit-weight-${objectId}`);
+            const newWeight = weightSelect ? parseInt(weightSelect.value) : 6;
             if (allMapLayers[objectId]) {
                 const cache = allMapLayers[objectId];
                 const isCircle = !!cache.layer.options.radius;
@@ -1813,9 +1862,19 @@ function finishCurrentDrawing() {
                     const rawLatLngs = cache.layer.getLatLngs();
                     currentCoordinates = Array.isArray(rawLatLngs[0]) ? rawLatLngs.map(ring => ring.map(p => [p.lat, p.lng])) : rawLatLngs.map(p => [p.lat, p.lng]);
                 }
-
-                const updatedData = { id: objectId, shapeType: sType, coordinates: currentCoordinates, radius: currentRadius, message: newMsg, color: newColor, fillOpacity: newFillOpacity, creator: cache.creator, time: getFormattedTime() };
-                map.removeLayer(cache.layer); if (cache.pin) map.removeLayer(cache.pin); if (cache.resizePin) map.removeLayer(cache.resizePin); if (cache.vertexPins) cache.vertexPins.forEach(vp => map.removeLayer(vp));
+// 👇 在打包的 updatedData 中加入 weight 屬性
+        const updatedData = { 
+            id: objectId, 
+            shapeType: sType, 
+            coordinates: currentCoordinates, 
+            radius: currentRadius, 
+            message: newMsg, 
+            color: newColor, 
+            weight: newWeight, // 👈 帶入新粗細
+            fillOpacity: newFillOpacity, 
+            creator: cache.creator, 
+            time: getFormattedTime() 
+        };                map.removeLayer(cache.layer); if (cache.pin) map.removeLayer(cache.pin); if (cache.resizePin) map.removeLayer(cache.resizePin); if (cache.vertexPins) cache.vertexPins.forEach(vp => map.removeLayer(vp));
                 delete allMapLayers[objectId];
                 renderObjectOnMap(updatedData);
                 socket.emit('delete_object', objectId); socket.emit('new_object', updatedData);
