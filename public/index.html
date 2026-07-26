@@ -960,13 +960,14 @@ function submitEventReport() {
         return;
     }
 
-    const eventData = {
-        category: category,
-        description: description,
-        lat: pendingEventLatLng.lat,
-        lng: pendingEventLatLng.lng,
-        photoData: pendingPhotoBase64
-    };
+const eventData = {
+    category: category,
+    description: description,
+    lat: pendingEventLatLng.lat,
+    lng: pendingEventLatLng.lng,
+    photoData: pendingPhotoBase64,
+    sender: currentUser // 💡 關鍵：帶上送出者帳號
+};
 
     socket.emit('new_event', eventData);
     closeEventModal();
@@ -998,8 +999,16 @@ function finishCurrentDrawing() {
     if (type !== 'polyline' && type !== 'polygon') return;
     
     const msg = prompt(type === 'polyline' ? "請輸入細線說明：" : "請輸入範圍說明：") || "未命名範圍";
-    const data = { id: 'obj_' + Date.now(), shapeType: type, coordinates: JSON.parse(JSON.stringify(tempPoints)), message: msg, creator: currentUser, color: "#3388ff", fillOpacity: type === 'polygon' ? 0.3 : 0, time: getFormattedTime() };
-    
+const data = { 
+    id: 'obj_' + Date.now(), 
+    shapeType: "marker", 
+    coordinates: [lat, lng], 
+    message: msg, 
+    creator: currentUser, // 這裡用的是 creator
+    color: "#3388ff", 
+    fillOpacity: 0, 
+    time: getFormattedTime() 
+};    
     if (tempShape) {
         map.removeLayer(tempShape);
         tempShape = null;
