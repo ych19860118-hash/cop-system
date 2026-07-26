@@ -2154,6 +2154,12 @@ document.getElementById('btn-earthquake').addEventListener('click', async () => 
     }
 });
 // 查詢氣象資料
+           var weatherRadarLayer = L.tileLayer('你的圖磚網址', {
+    maxZoom: 22,         
+    maxNativeZoom: 18,   // 💡 超過 18 級時自動內插放大，解決 Zoom Level Not Supported
+    transparent: true,
+    opacity: 0.6
+});
 document.getElementById('btn-weather').addEventListener('click', async () => {
     try {
         modalTitle.textContent = "即時氣象站資料 (中央氣象署)";
