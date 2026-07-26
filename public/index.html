@@ -629,7 +629,14 @@ updateMeasurePanel(0);
     if (map) {
         map.getContainer().style.cursor = 'crosshair';
     }
-    
+    // 👇 新增：讓地圖上所有的圖形暫時不攔截點擊事件，讓量測可以點到它們下方
+    if (typeof allMapLayers !== 'undefined') {
+        Object.values(allMapLayers).forEach(item => {
+            if (item.layer && typeof item.layer.setStyle === 'function') {
+                item.layer.setStyle({ interactive: false });
+            }
+        });
+    }
     // 顯示打勾按鈕
     const finishBtn = document.getElementById('btn-finish');
     if (finishBtn) {
@@ -724,7 +731,21 @@ function finishMeasuring() {
     if (map) {
         map.getContainer().style.cursor = '';
     }
-    showToast("📏 距離量測已完成");
+// 👇 新增：恢復所有圖層的滑鼠互動性
+    if (typeof allMapLayers !== 'undefined') {
+        Object.values(allMapLayers).forEach(item => {
+            if (item.layer && typeof item.layer.setStyle === 'function') {
+                item.layer.setStyle({ interactive: true });
+            }
+        });
+    }
+
+    const finishBtn = document.getElementById('btn-finish');
+    if (finishBtn) {
+        finishBtn.style.display = 'none';
+    }
+
+    showToast("✅ 已完成距離量測");
 }
 
 // 清除畫面上所有的量測圖資
