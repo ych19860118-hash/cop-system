@@ -1539,7 +1539,6 @@ function finishCurrentDrawing() {
 
                 if (isMyObject || isAdmin) {
                     let fillOptionHTML = "";
-                    let weightOptionHTML = ""; // 👈 新增：線條粗細選單變數
                     if (data.shapeType !== "marker" && data.shapeType !== "polyline") {
                         fillOptionHTML = `
                             <label>填滿模式：</label>
@@ -1549,20 +1548,6 @@ function finishCurrentDrawing() {
                                 <option value="0.6" ${currentFillOpacity === 0.6 ? 'selected':''}>深色填滿 (60%)</option>
                             </select>`;
                     }
-                    if (data.shapeType === "polyline" || data.shapeType === "polygon" || data.shapeType === "rectangle") {
-    const currentWeight = mainLayer.options.weight || 3;
-    weightOptionHTML = `
-        <div>
-            <label>線條粗細：</label>
-            <select id="edit-weight-${data.id}">
-                <option value="3" ${currentWeight === 3 ? 'selected':''}>細 (3px)</option>
-                <option value="6" ${currentWeight === 6 ? 'selected':''}>中 (6px)</option>
-                <option value="10" ${currentWeight === 10 ? 'selected':''}>粗 (10px)</option>
-                <option value="16" ${currentWeight === 16 ? 'selected':''}>特粗 (16px)</option>
-            </select>
-        </div>`;
-}
-
 // 組合 Popup 內容時，把 weightOptionHTML 放進去
 popupContent = `
     <div class="popup-menu" id="popup-root-${data.id}">
@@ -1607,7 +1592,6 @@ popupContent = `
                                     <option value="#ffc107" ${data.color === '#ffc107'?'selected':''}>黃色 (注意區域)</option>
                             </select>
                             </div>
-                            ${fillOptionHTML}
                             <button onclick="updateObject('${data.id}')">儲存修改</button>
                             <button onclick="deleteObject('${data.id}')" class="del-btn">撤銷/刪除此圖形</button>
                             
@@ -1830,8 +1814,6 @@ popupContent = `
             const newColor = document.getElementById(`edit-color-${objectId}`).value;
             const fillSelect = document.getElementById(`edit-fill-${objectId}`);
             const newFillOpacity = fillSelect ? parseFloat(fillSelect.value) : 0;
-            const weightSelect = document.getElementById(`edit-weight-${objectId}`);
-            const newWeight = weightSelect ? parseInt(weightSelect.value) : 6;
             if (allMapLayers[objectId]) {
                 const cache = allMapLayers[objectId];
                 const isCircle = !!cache.layer.options.radius;
@@ -1853,19 +1835,8 @@ popupContent = `
                     const rawLatLngs = cache.layer.getLatLngs();
                     currentCoordinates = Array.isArray(rawLatLngs[0]) ? rawLatLngs.map(ring => ring.map(p => [p.lat, p.lng])) : rawLatLngs.map(p => [p.lat, p.lng]);
                 }
-// 👇 在打包的 updatedData 中加入 weight 屬性
-        const updatedData = { 
-            id: objectId, 
-            shapeType: sType, 
-            coordinates: currentCoordinates, 
-            radius: currentRadius, 
-            message: newMsg, 
-            color: newColor, 
-            weight: newWeight, // 👈 帶入新粗細
-            fillOpacity: newFillOpacity, 
-            creator: cache.creator, 
-            time: getFormattedTime() 
-        };                map.removeLayer(cache.layer); if (cache.pin) map.removeLayer(cache.pin); if (cache.resizePin) map.removeLayer(cache.resizePin); if (cache.vertexPins) cache.vertexPins.forEach(vp => map.removeLayer(vp));
+
+                 map.removeLayer(cache.layer); if (cache.pin) map.removeLayer(cache.pin); if (cache.resizePin) map.removeLayer(cache.resizePin); if (cache.vertexPins) cache.vertexPins.forEach(vp => map.removeLayer(vp));
                 delete allMapLayers[objectId];
                 renderObjectOnMap(updatedData);
                 socket.emit('delete_object', objectId); socket.emit('new_object', updatedData);
