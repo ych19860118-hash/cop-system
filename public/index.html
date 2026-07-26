@@ -623,17 +623,19 @@ let measureTotalDistance = 0;
 function toggleMeasureTool() {
     isMeasuring = true;
     showMeasurePanel();
-
-updateMeasurePanel(0);
+    updateMeasurePanel(0);
     measurePoints = [];
     if (map) {
         map.getContainer().style.cursor = 'crosshair';
     }
-    // 👇 新增：讓地圖上所有的圖形暫時不攔截點擊事件，讓量測可以點到它們下方
+// 👇 絕對防護：直接將所有圖層從地圖上暫時拔除，避免擋住點擊
     if (typeof allMapLayers !== 'undefined') {
         Object.values(allMapLayers).forEach(item => {
-            if (item.layer && typeof item.layer.setStyle === 'function') {
-                item.layer.setStyle({ interactive: false });
+            if (item.layer && map.hasLayer(item.layer)) map.removeLayer(item.layer);
+            if (item.pin && map.hasLayer(item.pin)) map.removeLayer(item.pin);
+            if (item.resizePin && map.hasLayer(item.resizePin)) map.removeLayer(item.resizePin);
+            if (item.vertexPins) {
+                item.vertexPins.forEach(vp => { if (map.hasLayer(vp)) map.removeLayer(vp); });
             }
         });
     }
@@ -731,15 +733,17 @@ function finishMeasuring() {
     if (map) {
         map.getContainer().style.cursor = '';
     }
-// 👇 新增：恢復所有圖層的滑鼠互動性
+// 👇 恢復所有圖層顯示
     if (typeof allMapLayers !== 'undefined') {
         Object.values(allMapLayers).forEach(item => {
-            if (item.layer && typeof item.layer.setStyle === 'function') {
-                item.layer.setStyle({ interactive: true });
+            if (item.layer && !map.hasLayer(item.layer)) item.layer.addTo(map);
+            if (item.pin && !map.hasLayer(item.pin)) item.pin.addTo(map);
+            if (item.resizePin && !map.hasLayer(item.resizePin)) item.resizePin.addTo(map);
+            if (item.vertexPins) {
+                item.vertexPins.forEach(vp => { if (!map.hasLayer(vp)) vp.addTo(map); });
             }
         });
     }
-
     const finishBtn = document.getElementById('btn-finish');
     if (finishBtn) {
         finishBtn.style.display = 'none';
