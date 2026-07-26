@@ -833,26 +833,31 @@ function clearMeasure() {
             setTimeout(() => toast.remove(), 3500);
         }
 
- function initMapInstance() {
+function initMapInstance() {
             if (map) return; 
             map = L.map('map', { doubleClickZoom: false, zoomControl: false, tapHold: false }).setView([23.6, 121], 8);
             initMeasureTool(map);
             // 1. 定義多個底圖圖層 (Base Layers)
             var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
+                minZoom: 1,
+                maxZoom: 22,         // 允許放大到 22 級以利標記
+                maxNativeZoom: 18,   // 超過 18 級時自動內插放大，不向伺服器索取不存在的圖磚
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map); // 預設載入的標準街道圖
 
             var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
+                minZoom: 1,
+                maxZoom: 22,         // 允許放大到 22 級
+                maxNativeZoom: 19,   // 衛星圖通常支援到 19 級
                 attribution: 'Tiles &copy; Esri'
             });
 
             var terrainLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                maxZoom: 17,
+                minZoom: 1,
+                maxZoom: 22,         // 允許放大到 22 級
+                maxNativeZoom: 17,   // 地形圖支援到 17 級
                 attribution: 'Map data: © OpenStreetMap contributors, SRTM'
             });
-
             // 2. 設定圖層清單供控制項使用
             var baseLayers = {
                 "標準街道圖": osmLayer,
