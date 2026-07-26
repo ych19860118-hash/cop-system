@@ -425,9 +425,15 @@ cursor:pointer;
     </button>
 
     <!-- 繪製線條 -->
-    <button class="tool-btn" id="btn-polyline" onclick="switchTool('polyline')" title="繪製線條">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-    </button>
+<button class="tool-btn" id="btn-polyline" onclick="switchTool('polyline')" title="繪製線條">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#39ff14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 17l6-6 4 4 8-8"></path>
+        <circle cx="3" cy="17" r="2" fill="#000" stroke="#39ff14"></circle>
+        <circle cx="9" cy="11" r="2" fill="#000" stroke="#39ff14"></circle>
+        <circle cx="13" cy="15" r="2" fill="#000" stroke="#39ff14"></circle>
+        <circle cx="21" cy="7" r="2" fill="#000" stroke="#39ff14"></circle>
+    </svg>
+</button>
 
     <!-- 繪製方形 -->
     <button class="tool-btn" id="btn-rectangle" onclick="switchTool('rectangle')" title="繪製方形">
@@ -458,11 +464,15 @@ cursor:pointer;
     </button>
 
     <!-- 測量工具 -->
-    <button class="tool-btn" id="btn-measure" onclick="toggleMeasureTool()" title="多點距離量測">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#39ff14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 12h20M2 7h20M2 17h20M6 5v14M10 9v6M14 9v6M18 5v14"></path>
-        </svg>
-    </button>
+<button class="tool-btn" id="btn-measure" onclick="toggleMeasureTool()" title="多點距離量測">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#39ff14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11a4 4 0 1 0 8 0 4 4 0 1 0-8 0"></path>
+        <path d="M12 11h8v4h-8z"></path>
+        <line x1="15" y1="11" x2="15" y2="15"></line>
+        <line x1="18" y1="11" x2="18" y2="15"></line>
+        <circle cx="8" cy="11" r="1" fill="#39ff14"></circle>
+    </svg>
+</button>
 
     <!-- 垃圾桶清除 -->
     <button class="tool-btn" id="btn-clear-measure" onclick="clearMeasure()" title="清除量測">
