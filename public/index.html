@@ -389,20 +389,6 @@ cursor:pointer;
     </style>
 </head>
 <body>
-    <!-- 【建議加在這裡】頂端浮動的連線狀態與計時器 -->
-    <div style="position: fixed; top: 10px; right: 70px; z-index: 1000; display: flex; gap: 10px;">
-        <!-- 線上運作時間計時器 -->
-        <div id="uptime-container" style="background: rgba(0,0,0,0.8); padding: 5px 12px; border-radius: 20px; color: white; font-size: 12px; display: flex; align-items: center; gap: 6px; border: 1px solid #2ecc71;">
-            <span>線上：</span>
-            <span id="uptime-counter" style="font-family: monospace; color: #2ecc71; font-weight: bold;">00:00:00</span>
-        </div>
-        
-        <!-- 連線狀態指示器 -->
-        <div id="connection-status" style="background: rgba(0,0,0,0.8); padding: 5px 12px; border-radius: 20px; color: white; font-size: 12px; display: flex; align-items: center; gap: 6px; border: 1px solid #555;">
-            <span id="status-dot" style="width: 10px; height: 10px; background-color: #f39c12; border-radius: 50%; display: inline-block;"></span>
-            <span id="status-text">連線中...</span>
-        </div>
-    </div>
     <!-- 登入面板 -->
     <div id="login-box">
         <h2>COP System協同地理圖資</h2>
@@ -2249,18 +2235,6 @@ if (typeof map !== 'undefined' && map && !window.hasMeasureDblClick) {
                 showToast("🗑️ 已成功刪除事件回報");
             }
         }
-        function adminOrOwnerDeleteEvent(eventId) {
-    if (confirm("確定要刪除這個事件回報嗎？")) {
-        if (allEventLayers[eventId]) {
-            map.removeLayer(allEventLayers[eventId].layer);
-            delete allEventLayers[eventId];
-        }
-        if (socket) {
-            socket.emit('delete_event', eventId);
-        }
-        showToast("🗑️ 已成功刪除事件回報");
-    }
-}
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
     <div style="padding:15px; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
