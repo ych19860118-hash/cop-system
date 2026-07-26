@@ -832,8 +832,7 @@ function clearMeasure() {
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 3500);
         }
-
- function initMapInstance() {
+function initMapInstance() {
     if (map) return; 
     map = L.map('map', { doubleClickZoom: false, zoomControl: false, tapHold: false }).setView([23.6, 121], 8);
     initMeasureTool(map);
@@ -854,10 +853,22 @@ function clearMeasure() {
         attribution: 'Map data: © OpenStreetMap contributors, SRTM'
     });
 
-    // 【新增】例如加入 CartoDB 淺色簡約底圖
+    // 淺色簡約底圖
     var cartoLightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 20,
         attribution: '&copy; CARTO'
+    });
+
+    // 暗色簡約底圖 (適合夜間或戰情室大螢幕)
+    var cartoDarkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20,
+        attribution: '&copy; CARTO'
+    });
+
+    // 國家地理世界地圖 (古典紙本風格與柔和地形)
+    var natGeoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 16,
+        attribution: 'Tiles &copy; Esri &mdash; National Geographic'
     });
 
     // 2. 設定圖層清單供控制項使用
@@ -865,7 +876,9 @@ function clearMeasure() {
         "標準街道圖": osmLayer,
         "衛星空照圖": satelliteLayer,
         "地形圖": terrainLayer,
-        "淺色簡約圖": cartoLightLayer // 【新增】放入圖層清單
+        "淺色簡約圖": cartoLightLayer,
+        "暗色簡約圖": cartoDarkLayer,
+        "國家地理地圖": natGeoLayer
     };
 
     // 3. 將圖層控制項加入地圖
