@@ -1994,21 +1994,34 @@ mapInstance.on('click', function(e) {
 
             toggleControl.addTo(mapInstance);
         }
-        document.addEventListener('DOMContentLoaded', () => {
-        const modal = document.getElementById('data-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalBody = document.getElementById('modal-body');
-            document.getElementById("btnMeasureFinish").onclick = finishMeasuring;
+       document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('data-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    
+    document.getElementById("btnMeasureFinish").onclick = finishMeasuring;
 
-document.getElementById("btnMeasureCancel").onclick = function(){
+    document.getElementById("btnMeasureCancel").onclick = function(){
+        clearMeasure();
+        hideMeasurePanel();
+        isMeasuring = false;
+    };
 
-    clearMeasure();
+    // 1. 綁定事件回報視窗的「取消」按鈕
+    const cancelEvtBtn = document.querySelector('.btn-cancel-evt');
+    if (cancelEvtBtn) {
+        cancelEvtBtn.addEventListener('click', function() {
+            document.getElementById('event-modal').style.display = 'none';
+            pendingEventLatLng = null;
+            switchTool('pan'); // 回到一般瀏覽模式
+        });
+    }
 
-    hideMeasurePanel();
-
-    isMeasuring = false;
-
-};
+    // 2. 監聽來自伺服器的廣播，即時渲染新事件
+    socket.on('new_event', function(data) {
+        renderEventOnMap(data); 
+    });
+});
 // 查詢最新地震資料
 document.getElementById('btn-earthquake').addEventListener('click', async () => {
     try {
