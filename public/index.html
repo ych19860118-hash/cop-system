@@ -307,6 +307,85 @@
             border-radius: 4px;
             font-size: 12px;
         }
+        /*==========================
+    Measure Panel
+===========================*/
+
+#measure-panel{
+
+display:none;
+
+position:absolute;
+
+top:80px;
+
+right:20px;
+
+width:230px;
+
+background:#222;
+
+border:2px solid #00ff00;
+
+border-radius:8px;
+
+padding:12px;
+
+z-index:99999;
+
+color:white;
+
+box-shadow:0 0 15px rgba(0,0,0,.5);
+
+}
+
+.measure-title{
+
+font-size:18px;
+
+font-weight:bold;
+
+margin-bottom:15px;
+
+}
+
+.measure-distance{
+
+text-align:center;
+
+margin-bottom:15px;
+
+}
+
+#measure-total{
+
+font-size:28px;
+
+font-weight:bold;
+
+color:#00ff00;
+
+margin-top:8px;
+
+}
+
+.measure-buttons{
+
+display:flex;
+
+gap:8px;
+
+}
+
+.measure-buttons button{
+
+flex:1;
+
+padding:8px;
+
+cursor:pointer;
+
+}
     </style>
 </head>
 <body>
@@ -529,10 +608,13 @@
 let measurePoints = [];
 let measurePolyline = null;
 let measureTooltips = [];
-
+let measureTotalDistance = 0;
 // 切換量測工具開關的函式（你可以綁定到 UI 上的某個按鈕）
 function toggleMeasureTool() {
     isMeasuring = true;
+    showMeasurePanel();
+
+updateMeasurePanel(0);
     measurePoints = [];
     if (map) {
         map.getContainer().style.cursor = 'crosshair';
@@ -579,7 +661,7 @@ function initMeasureTool(mapInstance) {
             // 計算總距離
             let totalDistance = 0;
             for (let i = 0; i < measurePoints.length - 1; i++) {
-                totalDistance += measurePoints[i].distanceTo(measurePoints[i + 1]);
+                totalDistance += measurePoints[i].distanceTo(measurePoints[i + 1]);updateMeasurePanel(totalDistance);
             }
 
             // 格式化距離顯示 (公尺或公里)
@@ -603,10 +685,32 @@ function initMeasureTool(mapInstance) {
         finishMeasuring();
     });
 }
+function showMeasurePanel(){
 
+    document.getElementById("measure-panel").style.display="block";
+
+}
+
+function hideMeasurePanel(){
+
+    document.getElementById("measure-panel").style.display="none";
+
+}
+
+function updateMeasurePanel(distance){
+
+    const txt =
+        distance>=1000
+        ? (distance/1000).toFixed(2)+" 公里"
+        : Math.round(distance)+" 公尺";
+
+    document.getElementById("measure-total").innerHTML = txt;
+
+}
 // 結束並清除量測狀態
 function finishMeasuring() {
     isMeasuring = false;
+    hideMeasurePanel();
     if (map) {
         map.getContainer().style.cursor = '';
     }
@@ -1888,6 +1992,17 @@ mapInstance.on('click', function(e) {
         const modal = document.getElementById('data-modal');
         const modalTitle = document.getElementById('modal-title');
         const modalBody = document.getElementById('modal-body');
+            document.getElementById("btnMeasureFinish").onclick = finishMeasuring;
+
+document.getElementById("btnMeasureCancel").onclick = function(){
+
+    clearMeasure();
+
+    hideMeasurePanel();
+
+    isMeasuring = false;
+
+};
 // 查詢最新地震資料
 document.getElementById('btn-earthquake').addEventListener('click', async () => {
     try {
@@ -1998,5 +2113,35 @@ if (typeof map !== 'undefined' && map && !window.hasMeasureDblClick) {
         <!-- 資料內容會動態塞入這裡 -->
     </div>
 </div>
+ <div id="measure-panel">
+
+    <div class="measure-title">
+        📏 多點距離量測
+    </div>
+
+    <div class="measure-distance">
+
+        <div>目前總距離</div>
+
+        <div id="measure-total">
+            0 公尺
+        </div>
+
+    </div>
+
+    <div class="measure-buttons">
+
+        <button id="btnMeasureFinish">
+            ✓ 完成量測
+        </button>
+
+        <button id="btnMeasureCancel">
+            ✕ 取消
+        </button>
+
+    </div>
+
+</div>
+   
 </body>
 </html>
