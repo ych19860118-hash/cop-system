@@ -1342,12 +1342,13 @@ function finishCurrentDrawing() {
 
             marker.bindTooltip(`[${data.category}]`, { permanent: true, direction: 'top', className: 'tactical-tooltip', interactive: false });
 
-            const isOwner = (data.sender === currentUser);
-            const isAdmin = currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]');
-            let deleteBtnHTML = "";
-            if (isOwner || isAdmin) {
-                deleteBtnHTML = `<button onclick="deleteEventReport('${data.id}')" class="del-btn" style="margin-top:8px;">刪除此事件回報</button>`;
-            }
+const isOwner = (data.sender === currentUser);
+const isAdmin = currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]');
+let deleteBtnHTML = "";
+if (isOwner || isAdmin) {
+    // 💡 點擊時改呼叫自定義的完整清除函式，確保自己跟別人的地圖都會同步刪除
+    deleteBtnHTML = `<button onclick="adminOrOwnerDeleteEvent('${data.id}')" class="del-btn" style="margin-top:8px;">刪除此事件回報</button>`;
+}
 
             let photoHTML = data.photoData ? `<img src="${data.photoData}" class="event-popup-img" alt="事件照片">` : "";
             const popupHTML = `
@@ -2190,6 +2191,19 @@ if (typeof map !== 'undefined' && map && !window.hasMeasureDblClick) {
         }
     });
 }
+        // 💡 貼在這裡：新增的管理者/擁有者事件刪除函式
+        function adminOrOwnerDeleteEvent(eventId) {
+            if (confirm("確定要刪除這個事件回報嗎？")) {
+                if (allEventLayers[eventId]) {
+                    map.removeLayer(allEventLayers[eventId].layer);
+                    delete allEventLayers[eventId];
+                }
+                if (socket) {
+                    socket.emit('delete_event', eventId);
+                }
+                showToast("🗑️ 已成功刪除事件回報");
+            }
+        }
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
     <div style="padding:15px; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
