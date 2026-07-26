@@ -834,49 +834,56 @@ function clearMeasure() {
         }
 
  function initMapInstance() {
-            if (map) return; 
-            map = L.map('map', { doubleClickZoom: false, zoomControl: false, tapHold: false }).setView([23.6, 121], 8);
-            initMeasureTool(map);
-            // 1. 定義多個底圖圖層 (Base Layers)
-            var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map); // 預設載入的標準街道圖
+    if (map) return; 
+    map = L.map('map', { doubleClickZoom: false, zoomControl: false, tapHold: false }).setView([23.6, 121], 8);
+    initMeasureTool(map);
+    
+    // 1. 定義多個底圖圖層 (Base Layers)
+    var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map); // 預設載入的標準街道圖
 
-            var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
-                attribution: 'Tiles &copy; Esri'
-            });
+    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri'
+    });
 
-            var terrainLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                maxZoom: 17,
-                attribution: 'Map data: © OpenStreetMap contributors, SRTM'
-            });
+    var terrainLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        attribution: 'Map data: © OpenStreetMap contributors, SRTM'
+    });
 
-            // 2. 設定圖層清單供控制項使用
-            var baseLayers = {
-                "標準街道圖": osmLayer,
-                "衛星空照圖": satelliteLayer,
-                "地形圖": terrainLayer
-            };
+    // 【新增】例如加入 CartoDB 淺色簡約底圖
+    var cartoLightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20,
+        attribution: '&copy; CARTO'
+    });
 
-            // 3. 將圖層控制項加入地圖 (您可以將 position 設為 'topright' 或配合您的排版)
-            L.control.layers(baseLayers, {}, {
-                position: 'topright',
-                collapsed: true
-            }).addTo(map);
+    // 2. 設定圖層清單供控制項使用
+    var baseLayers = {
+        "標準街道圖": osmLayer,
+        "衛星空照圖": satelliteLayer,
+        "地形圖": terrainLayer,
+        "淺色簡約圖": cartoLightLayer // 【新增】放入圖層清單
+    };
 
-            // 阻斷控制項上的點擊事件穿透到 Leaflet 地圖
-            ['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) L.DomEvent.disableClickPropagation(el);
-            });
+    // 3. 將圖層控制項加入地圖
+    L.control.layers(baseLayers, {}, {
+        position: 'topright',
+        collapsed: true
+    }).addTo(map);
 
-            window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
-            initDrawingEvents();
-            initWeatherFeatures(map);
-        }
+    // 阻斷控制項上的點擊事件穿透到 Leaflet 地圖
+    ['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) L.DomEvent.disableClickPropagation(el);
+    });
 
+    window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
+    initDrawingEvents();
+    initWeatherFeatures(map);
+}
         function switchTool(tool) {
             if ((currentTool === 'polyline' || currentTool === 'polygon') && tempPoints.length > 0) {
                 if (tempShape) {
