@@ -761,7 +761,20 @@ function clearMeasure() {
     measureTooltips.forEach(marker => map.removeLayer(marker));
     measureTooltips = [];
     measurePoints = [];
+    
+    // 👇 新增：當執行清除量測時，把原本被暫時移除的地圖圖層加回來
+    if (typeof allMapLayers !== 'undefined') {
+        Object.values(allMapLayers).forEach(item => {
+            if (item.layer && !map.hasLayer(item.layer)) item.layer.addTo(map);
+            if (item.pin && !map.hasLayer(item.pin)) item.pin.addTo(map);
+            if (item.resizePin && !map.hasLayer(item.resizePin)) item.resizePin.addTo(map);
+            if (item.vertexPins) {
+                item.vertexPins.forEach(vp => { if (!map.hasLayer(vp)) vp.addTo(map); });
+            }
+        });
+    }
 }
+
         const SERVER_URL = window.location.origin; 
         let socket, currentUser = "", currentRoom = "", map, allMapLayers = {};
         let allEventLayers = {};
