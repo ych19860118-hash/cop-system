@@ -991,7 +991,6 @@ function finishCurrentDrawing() {
             map.getContainer().style.cursor = '';
         }
         
-        // 隱藏打勾按鈕
         const finishBtn = document.getElementById('btn-finish');
         if (finishBtn) {
             finishBtn.style.display = 'none';
@@ -1000,7 +999,8 @@ function finishCurrentDrawing() {
         showToast("✅ 已完成距離量測");
         return;
     }
-    // --- 以下保持你原本的圖形繪製結束邏輯 ---
+
+    // --- 圖形繪製結束邏輯修正 ---
     if (tempPoints.length < 2) {
         showToast("⚠️ 至少需要兩個點才能完成線條或多邊形繪製");
         return;
@@ -1009,22 +1009,29 @@ function finishCurrentDrawing() {
     if (type !== 'polyline' && type !== 'polygon') return;
     
     const msg = prompt(type === 'polyline' ? "請輸入細線說明：" : "請輸入範圍說明：") || "未命名範圍";
-const data = { 
-    id: 'obj_' + Date.now(), 
-    shapeType: "marker", 
-    coordinates: [lat, lng], 
-    message: msg, 
-    creator: currentUser, // 這裡用的是 creator
-    color: "#3388ff", 
-    fillOpacity: 0, 
-    time: getFormattedTime() 
-};    
+
+    // 👇 修正此處：不要寫死為 marker，要帶入正確的 shapeType 與 coordinates
+    const data = { 
+        id: 'obj_' + Date.now(), 
+        shapeType: type, // 這裡會是 'polyline' 或 'polygon'
+        coordinates: type === 'polygon' ? [tempPoints] : tempPoints, // 多邊形需要包一層陣列
+        message: msg, 
+        creator: currentUser, 
+        color: "#3388ff", 
+        fillOpacity: type === 'polygon' ? 0.3 : 0, 
+        time: getFormattedTime() 
+    };    
+    
     if (tempShape) {
         map.removeLayer(tempShape);
         tempShape = null;
     }
+    
     renderObjectOnMap(data); 
     socket.emit('new_object', data); 
+    
+    // 清空暫存點並切換回 pan 模式
+    tempPoints = [];
     switchTool('pan');
 }
 
@@ -1078,6 +1085,9 @@ const data = {
 
             map.on('contextmenu', function(e) {
                 if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'event' || currentTool === 'search') return;
+                if (e.originalEvent) {
+        e.originalEvent.preventDefault();
+    }
                 finishCurrentDrawing();
             });
 
