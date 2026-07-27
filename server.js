@@ -62,6 +62,27 @@ app.get('/api/weather/data', async (req, res) => {
     }
 });
 
+// --- 新增：天氣特報 API (W-C0033-002) ---
+app.get('/api/weather/warnings', async (req, res) => {
+    try {
+        // 注意：W-C0033-002 屬於 dataset，因此路徑為 /api/v1/rest/dataset/W-C0033-002
+        const url = `https://opendata.cwa.gov.tw/api/v1/rest/dataset/W-C0033-002?Authorization=${getApiKey()}&format=JSON`;
+        const response = await axios.get(url, { timeout: 5000 });
+        
+        const records = response.data.records || {};
+        res.json({
+            success: true,
+            records: records
+        });
+    } catch (error) { 
+        console.error('天氣特報 API 錯誤:', error.message);
+        res.status(502).json({ 
+            success: false, 
+            error: "無法取得即時天氣特報資料" 
+        }); 
+    }
+});
+
 app.post('/api/login', (req, res) => {
     const { username, roomName, roomPassword } = req.body;
     if (!username) return res.json({ success: false, message: "請輸入暱稱" });
@@ -168,7 +189,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- 即時事件回報相關 (新補上) ---
+    // --- 即時事件回報相關 ---
     socket.on('new_event', (evtData) => {
         if (socket.myRoom && rooms[socket.myRoom]) {
             rooms[socket.myRoom].lastActive = Date.now();
