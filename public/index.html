@@ -603,9 +603,7 @@ cursor:pointer;
 
     <!-- 頻道狀態資訊面板 -->
     <div id="typhoon-info">
-        <b style="color: #22c55e; font-size: 13px; letter-spacing: 1px;">頻道名稱: <span id="state-room" style="color:#39ff14;"></span>
-        <span id="channel-uptime" style="margin-left: 10px; font-size: 0.9em; color: #00ff00;">已建立 0 秒</span>
-        </b>
+        <b style="color: #22c55e; font-size: 13px; letter-spacing: 1px;">頻道名稱: <span id="state-room" style="color:#39ff14;"></span></b>
         <div style="margin-top: 8px;">
             狀態: <b style="color:#39ff14;">ACTIVE</b><br>
             在線人數: <b id="state-count" style="color:#39ff14; font-size:14px;">0</b>
@@ -1217,52 +1215,6 @@ function finishCurrentDrawing() {
         }
     } catch (err) { 
         document.getElementById('login-error').innerText = "連線後端錯誤！"; 
-    }
-}
-        let channelTimerInterval = null;
-
-function startChannelTimer(createdAtString) {
-    const createdTime = new Date(createdAtString).getTime();
-    if (channelTimerInterval) clearInterval(channelTimerInterval);
-
-    const timerElement = document.getElementById('channel-uptime');
-    if (!timerElement) return;
-
-    channelTimerInterval = setInterval(() => {
-        const now = new Date().getTime();
-        const diffMs = now - createdTime;
-
-        if (diffMs < 0) {
-            timerElement.innerText = "尚未建立";
-            return;
-        }
-
-        const seconds = Math.floor((diffMs / 1000) % 60);
-        const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
-        const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
-        const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-        let timeString = "已建立 ";
-        if (days > 0) timeString += `${days} 天 `;
-        if (hours > 0 || days > 0) timeString += `${hours} 小時 `;
-        if (minutes > 0 || hours > 0 || days > 0) timeString += `${minutes} 分鐘 `;
-        timeString += `${seconds} 秒`;
-
-        timerElement.innerText = timeString;
-    }, 1000);
-}
-
-async function fetchAndShowChannelUptime() {
-    if (!currentRoom) return;
-    try {
-        const response = await fetch(`${SERVER_URL}/api/room/info?roomName=${encodeURIComponent(currentRoom)}`);
-        const data = await response.json();
-
-        if (data.success && data.createdAt) {
-            startChannelTimer(data.createdAt);
-        }
-    } catch (err) {
-        console.error("無法取得頻道生命週期資訊", err);
     }
 }
         function initSocketAndLayers() {
