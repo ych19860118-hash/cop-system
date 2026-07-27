@@ -17,10 +17,10 @@ function getFormattedTime() {
     return new Date().toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' });
 }
 
-// 狀態管理 (加入 createdAt 屬性來記錄頻道建立時間)
+// 狀態管理 (加入 events 屬性來儲存歷史事件)
 let rooms = {
-    "公開頻道(訪客)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now(), createdAt: Date.now() }, 
-    "公開頻道(風災)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now(), createdAt: Date.now() }
+    "公開頻道(訪客)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() }, 
+    "公開頻道(風災)無須密碼": { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() }
 };
 
 // --- 自動清理機制 (每 15 分鐘檢查一次) ---
@@ -29,9 +29,7 @@ setInterval(() => {
     const now = Date.now();
 
     for (const roomName in rooms) {
-        if (roomName.includes("公開頻道")) continue; // 1. 公開頻道直接略過不刪
-        
-        // 2. 非公開頻道：必須同時符合「超過 8 小時」且「線上人數為 0」才會被刪除
+        if (roomName.includes("公開頻道")) continue;
         if (now - rooms[roomName].lastActive > EIGHT_HOURS && rooms[roomName].userList.length === 0) {
             delete rooms[roomName];
             console.log(`[系統清理] 已刪除閒置頻道: ${roomName}`);
@@ -64,26 +62,12 @@ app.get('/api/weather/data', async (req, res) => {
     }
 });
 
-// --- 取得頻道資訊 API (供前端計算生命週期) ---
-app.get('/api/room/info', (req, res) => {
-    const roomName = req.query.roomName;
-    if (!roomName || !rooms[roomName]) {
-        return res.json({ success: false, message: "頻道不存在" });
-    }
-    
-    res.json({
-        success: true,
-        roomName: roomName,
-        createdAt: rooms[roomName].createdAt
-    });
-});
-
 app.post('/api/login', (req, res) => {
     const { username, roomName, roomPassword } = req.body;
     if (!username) return res.json({ success: false, message: "請輸入暱稱" });
     
     if (!rooms[roomName]) {
-        rooms[roomName] = { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now(), createdAt: Date.now() };
+        rooms[roomName] = { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() };
     }
 
     const room = rooms[roomName];
@@ -106,7 +90,7 @@ app.post('/api/login', (req, res) => {
 io.on('connection', (socket) => {
     socket.on('join_room', (data) => {
         if (!rooms[data.roomName]) {
-            rooms[data.roomName] = { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now(), createdAt: Date.now() };
+            rooms[data.roomName] = { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
 
         // 雙重檢查：防止透過 Socket 直接繞過 API 登入
@@ -184,7 +168,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- 即時事件回報相關 ---
+    // --- 即時事件回報相關 (新補上) ---
     socket.on('new_event', (evtData) => {
         if (socket.myRoom && rooms[socket.myRoom]) {
             rooms[socket.myRoom].lastActive = Date.now();
