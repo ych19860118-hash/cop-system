@@ -29,7 +29,9 @@ setInterval(() => {
     const now = Date.now();
 
     for (const roomName in rooms) {
-        if (roomName.includes("公開頻道")) continue;
+        if (roomName.includes("公開頻道")) continue; // 1. 公開頻道直接略過不刪
+        
+        // 2. 非公開頻道：必須同時符合「超過 8 小時」且「線上人數為 0」才會被刪除
         if (now - rooms[roomName].lastActive > EIGHT_HOURS && rooms[roomName].userList.length === 0) {
             delete rooms[roomName];
             console.log(`[系統清理] 已刪除閒置頻道: ${roomName}`);
