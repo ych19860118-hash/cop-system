@@ -2235,6 +2235,33 @@ if (typeof map !== 'undefined' && map && !window.hasMeasureDblClick) {
                 showToast("🗑️ 已成功刪除事件回報");
             }
         }
+        // 💡 貼在這裡：新增的管理者/擁有者事件刪除函式
+        function adminOrOwnerDeleteEvent(eventId) {
+            if (confirm("確定要刪除這個事件回報嗎？")) {
+                if (allEventLayers[eventId]) {
+                    map.removeLayer(allEventLayers[eventId].layer);
+                    delete allEventLayers[eventId];
+                }
+                if (socket) {
+                    socket.emit('delete_event', eventId);
+                }
+                showToast("🗑️ 已成功刪除事件回報");
+            }
+        }
+
+        // ==========================================
+        // 📏 請貼在這邊（整個 <script> 標籤的最後方）
+        // ==========================================
+        if (typeof map !== 'undefined' && map && !window.hasMeasureDblClick) {
+            window.hasMeasureDblClick = true; // 避免重複綁定事件
+            map.on('dblclick', function(e) {
+                if (typeof isMeasuring !== 'undefined' && isMeasuring) {
+                    if (typeof finishCurrentDrawing === 'function') {
+                        finishCurrentDrawing();
+                    }
+                }
+            });
+        }
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
     <div style="padding:15px; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
