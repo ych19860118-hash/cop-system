@@ -419,13 +419,10 @@ cursor:pointer;
         </svg>
     </button>
 
-<!-- 即時事件回報按鈕 -->
-<button class="tool-btn" id="btn-event" onclick="openDisasterModal()" title="即時事件回報與照片上傳">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#39ff14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-        <circle cx="12" cy="13" r="4"></circle>
-    </svg>
-</button>
+    <!-- 即時事件回報與照片上傳 -->
+    <button class="tool-btn" id="btn-event" onclick="switchTool('event')" title="即時事件回報與照片上傳">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    </button>
 
     <!-- 繪製線條 -->
 <button class="tool-btn" id="btn-polyline" onclick="switchTool('polyline')" title="繪製線條">
@@ -520,21 +517,7 @@ cursor:pointer;
             <button class="btn-cancel-evt" onclick="closeGPSModal()" style="margin-top: 5px;">取消</button>
         </div>
     </div>
-<!-- 💡 【請加在這裡】事件說明與照片上傳對話框 (步驟 3 專用) -->
-    <div id="disaster-detail-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 2px solid #39ff14; padding: 20px; z-index: 2000; border-radius: 8px; color: #fff; width: 300px;">
-        <h3 id="detail-modal-title" style="margin-top: 0; color: #39ff14;">填寫災情資訊</h3>
-        <p style="font-size: 11px; color: #a0aec0; margin-bottom: 8px;">請輸入事件詳細說明並可選擇上傳現場照片</p>
-        
-        <textarea id="disaster-desc-input" placeholder="請輸入災情說明..." style="width: 100%; height: 80px; background: #111; color: #fff; border: 1px solid #444; padding: 6px; border-radius: 4px; resize: none; margin-bottom: 10px;"></textarea>
-        
-        <label style="font-size: 12px; display: block; margin-bottom: 4px;">上傳照片：</label>
-        <input type="file" id="disaster-photo-input" accept="image/*" style="font-size: 11px; margin-bottom: 15px; width: 100%;">
-        
-        <div style="display: flex; gap: 8px;">
-            <button onclick="confirmDisasterDetails()" style="flex: 1; background: #39ff14; color: #000; border: none; padding: 8px; font-weight: bold; border-radius: 4px; cursor: pointer;">下一步：地圖標示</button>
-            <button onclick="closeDetailModal()" style="flex: 1; background: #444; color: #fff; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">取消</button>
-        </div>
-    </div>
+
 
     <!-- 即時事件通報對話框 -->
     <div id="event-modal">
@@ -629,44 +612,6 @@ cursor:pointer;
     </div>
     
     <div id="toast-container"></div>
-    <!-- 救災圖示選擇浮動視窗 (Modal) -->
-    <div id="disaster-icon-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#1a1a1a; border:2px solid #39ff14; padding:20px; border-radius:10px; z-index:1000; box-shadow:0 8px 24px rgba(0,0,0,0.6); width:320px; color:#fff;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:8px;">
-            <h3 style="margin:0; font-size:16px; color:#39ff14;">選擇災情狀況圖示</h3>
-            <span style="cursor:pointer; color:#a0aec0; font-size:18px;" onclick="closeDisasterModal()">✖</span>
-        </div>
-        <p style="font-size:12px; color:#a0aec0; margin-bottom:12px;">請點選欲標記的類別，再點擊地圖放置：</p>
-        
-        <!-- 圖示方格選單 Grid -->
-        <div id="disaster-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:15px;">
-            <!-- 動態填入或預先定義 -->
-            <div class="disaster-option" data-type="fire" onclick="selectDisasterType('fire')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
-                <div style="font-size:24px;">🔥</div>
-                <div style="font-size:11px; margin-top:4px;">火災濃煙</div>
-            </div>
-            <div class="disaster-option" data-type="flood" onclick="selectDisasterType('flood')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
-                <div style="font-size:24px;">💧</div>
-                <div style="font-size:11px; margin-top:4px;">淹水警戒</div>
-            </div>
-            <div class="disaster-option" data-type="landslide" onclick="selectDisasterType('landslide')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
-                <div style="font-size:24px;">🧱</div>
-                <div style="font-size:11px; margin-top:4px;">土石流</div>
-            </div>
-            <div class="disaster-option" data-type="shelter" onclick="selectDisasterType('shelter')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
-                <div style="font-size:24px;">⛺</div>
-                <div style="font-size:11px; margin-top:4px;">收容所</div>
-            </div>
-            <div class="disaster-option" data-type="medical" onclick="selectDisasterType('medical')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
-                <div style="font-size:24px;">🏥</div>
-                <div style="font-size:11px; margin-top:4px;">醫療救護</div>
-            </div>
-            <div class="disaster-option" data-type="roadclosed" onclick="selectDisasterType('roadclosed')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
-                <div style="font-size:24px;">🚫</div>
-                <div style="font-size:11px; margin-top:4px;">道路封閉</div>
-            </div>
-        </div>
-        <button onclick="closeDisasterModal()" style="width:100%; background:#333; border:none; color:#fff; padding:8px; border-radius:4px; cursor:pointer;">取消</button>
-    </div>
     <div id="map"></div>
     <script>
         let isMeasuring = false;
@@ -1151,30 +1096,11 @@ function finishCurrentDrawing() {
 
  function initDrawingEvents() {
             map.on('click', function(e) {
-if (currentTool === 'event') {
-    const lat = e.latlng.lat;
-    const lng = e.latlng.lng;
-    
-    // 預設抓取目前選到的圖示與名稱（例如 🔥 與 火災濃煙）
-    const iconHtml = window.selectedDisasterIcon || '🔥'; 
-    const eventName = window.selectedDisasterName || '火災濃煙';
-
-    // 建立資料物件並傳送給後端 / 渲染在地圖上
-    const data = {
-        id: 'obj_' + Date.now(),
-        shapeType: "marker",
-        coordinates: [lat, lng],
-        message: eventName,
-        icon: iconHtml, // 把圖示存進資料裡
-        creator: currentUser,
-        time: getFormattedTime()
-    };
-
-    renderObjectOnMap(data); 
-    socket.emit('new_object', data);
-    switchTool('pan'); // 結束事件工具，回到平移
-    return;
-}
+                if (currentTool === 'event') {
+                    pendingEventLatLng = e.latlng;
+                    document.getElementById('event-modal').style.display = 'flex';
+                    return;
+                }
 
                 if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'search') return;
 
@@ -2335,69 +2261,6 @@ async function reverseGeocode(lat, lng) {
     }
     return null;
 }
-        // ==========================================
-// 1. 救災圖示選擇與 Modal 控制邏輯
-// ==========================================
-let selectedDisasterType = 'fire';
-let selectedDisasterIcon = '🔥';
-let selectedDisasterName = '火災濃煙';
-
-// 點擊任一災情選項時的切換邏輯
-function selectDisasterType(type) {
-    selectedDisasterType = type;
-    
-    // 6種災情類別的完整對照表
-    const disasterConfig = {
-        'fire': { icon: '🔥', name: '火災濃煙' },
-        'flood': { icon: '💧', name: '淹水警戒' },
-        'landslide': { icon: '🧱', name: '土石流' },
-        'shelter': { icon: '⛺', name: '收容所' },
-        'medical': { icon: '🏥', name: '醫療救護' },
-        'roadclosed': { icon: '🚫', name: '道路封閉' }
-    };
-
-    if (disasterConfig[type]) {
-        selectedDisasterIcon = disasterConfig[type].icon;
-        selectedDisasterName = disasterConfig[type].name;
-    }
-
-    // 更新介面上的選中高亮外框
-    document.querySelectorAll('.disaster-option').forEach(el => {
-        if (el.getAttribute('data-type') === type) {
-            el.style.borderColor = '#39ff14';
-            el.style.background = '#1a3a1a';
-        } else {
-            el.style.borderColor = '#444';
-            el.style.background = '#2a2a2a';
-        }
-    });
-
-    // 關閉 Modal 視窗，準備在地圖上點擊放置
-    closeDisasterModal();
-    currentTool = 'event'; 
-}
-
-// 關閉 Modal
-function closeDisasterModal() {
-    document.getElementById('disaster-icon-modal').style.display = 'none';
-}
-
-// 開啟 Modal
-function openDisasterModal() {
-    document.getElementById('disaster-icon-modal').style.display = 'block';
-}
-        // 自動尋找全域的地圖物件並綁定點擊回報事件
-window.addEventListener('DOMContentLoaded', function() {
-    // 檢查常見的地圖變數名稱 (通常是 map)
-    const activeMap = window.map || (typeof map !== 'undefined' ? map : null);
-    
-    if (activeMap) {
-        activeMap.on('click', handleMapClick);
-        console.log('已成功自動綁定即時事件回報的地圖點擊監聽！');
-    } else {
-        console.warn('找不到地圖實例 (map)，請確認你的地圖變數名稱是否為 map');
-    }
-});
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
     <div style="padding:15px; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
