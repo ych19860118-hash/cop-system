@@ -106,9 +106,26 @@ io.on('connection', (socket) => {
         rooms[data.roomName].userList.push(data.username);
         rooms[data.roomName].lastActive = Date.now();
         
-        const joinMsg = { sender: "系統通知", message: `【${data.username}】已加入房間`, time: getFormattedTime() };
-        rooms[data.roomName].chatHistory.push(joinMsg);
-        io.to(data.roomName).emit('receive_chat', joinMsg);
+        socket.on('disconnect', () => {
+        if (socket.myRoom && rooms[socket.myRoom]) {
+            if (socket.myName) {
+                rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
+                
+                // 加上這段：把離開訊息存入歷史紀錄並廣播
+                const leftMsg = { sender: "系統通知", message: `${socket.myName}已離開頻道`, time: getFormattedTime() };
+                rooms[socket.myRoom].chatHistory.push(leftMsg);
+                io.to(socket.myRoom).emit('receive_chat', leftMsg);
+
+                io.to(socket.myRoom).emit('user_notification', {
+                    name: socket.myName,
+                    action: 'left'
+                });
+            }
+            io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
+            io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
+            io.to(socket.myRoom).emit('user_disconnected', socket.id);
+        }
+    });
         
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
