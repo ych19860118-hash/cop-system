@@ -1038,7 +1038,7 @@ function submitEventReport() {
         sender: currentUser // 帶上送出者帳號
     };
 
-    // 1. 建立「事件類別」與「相對應圖示」的對照表
+// 1. 建立「事件類別」與「相對應圖示」的對照表
     const categoryIcons = {
         '道路阻斷': '🚫',
         '設施損壞': '🏚️',
@@ -1047,28 +1047,41 @@ function submitEventReport() {
         '一般回報': '📌'
     };
 
-    // 取得對應圖示，若沒有對應到則預設用 ⚠️
     const iconSymbol = categoryIcons[category] || '⚠️';
 
-    // 2. 建立 Leaflet 自訂圖示 (DivIcon)
+    // 2. 建立乾淨的圖示 (移除紅色外框、黑色圓底，只留純符號)
     const customIcon = L.divIcon({
         className: 'custom-disaster-marker',
-        html: `<div style="font-size: 24px; background: rgba(0,0,0,0.8); padding: 4px; border-radius: 50%; text-align: center; border: 2px solid #39ff14;">${iconSymbol}</div>`,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19]
+        html: `<div style="font-size: 28px; text-align: center; text-shadow: 0 0 4px #000;">${iconSymbol}</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
     });
 
-    // 3. 在本地地圖上直接加上對應圖示的 Marker 與 Popup 資訊
-    let popupContent = `<div style="max-width: 200px;"><b>${iconSymbol} ${category}</b><hr style="margin:4px 0;"><p>${description}</p>`;
+    // 3. 建立帶有「刪除按鈕」的 Popup 內容
+    const markerId = 'evt_' + Date.now();
+    let popupContent = `<div style="max-width: 200px;" id="popup-${markerId}">
+        <b>${iconSymbol} ${category}</b>
+        <hr style="margin:4px 0;">
+        <p>${description}</p>`;
+    
     if (pendingPhotoBase64) {
         popupContent += `<img src="${pendingPhotoBase64}" style="width:100%; margin-top:5px; border-radius:4px;">`;
     }
-    popupContent += `</div>`;
 
+    // 加上刪除按鈕
+    popupContent += `<button onclick="deleteEventMarker('${markerId}')" style="margin-top: 8px; width: 100%; background: #ff4d4d; color: #fff; border: none; padding: 4px; border-radius: 4px; cursor: pointer;">刪除事件</button>
+    </div>`;
+
+    // 4. 建立 Marker 並存入變數以供刪除使用
     const marker = L.marker([pendingEventLatLng.lat, pendingEventLatLng.lng], { icon: customIcon }).addTo(map);
     marker.bindPopup(popupContent);
+    marker.options.eventId = markerId; // 綁定 ID
 
-    // 4. 廣播與收尾
+    // 記錄到全域物件中以便管理刪除
+    if (!window.activeEventMarkers) window.activeEventMarkers = {};
+    window.activeEventMarkers[markerId] = marker;
+
+    // 5. 廣播與收尾
     socket.emit('new_event', eventData);
     closeEventModal();
     showToast("✅ 事件回報已廣播至頻道");
@@ -2291,6 +2304,15 @@ async function reverseGeocode(lat, lng) {
         console.error("逆地理編碼請求失敗：", error);
     }
     return null;
+}
+        // 刪除地圖標記的函式
+function deleteEventMarker(markerId) {
+    if (window.activeEventMarkers && window.activeEventMarkers[markerId]) {
+        const marker = window.activeEventMarkers[markerId];
+        map.removeLayer(marker); // 從地圖上移除
+        delete window.activeEventMarkers[markerId]; // 從紀錄中清除
+        showToast("🗑️ 已刪除此事件標記");
+    }
 }
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
