@@ -1370,6 +1370,8 @@ socket.off('object_added');
                     if (badge) badge.style.display = 'block';
                 }
             });
+// ✔️ 改成這樣：先清掉舊的，再綁定帶有 Toast 的版本
+            socket.off('event_added');
             socket.on('event_added', function(evtData) {
                 renderEventOnMap(evtData);
                 showToast(`🚨 [${evtData.category}] ${evtData.sender} 剛剛回報了新狀況！`);
