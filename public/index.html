@@ -1055,7 +1055,7 @@ function submitEventReport() {
         photoData: pendingPhotoBase64,
         sender: currentUser // 帶上送出者帳號
     };
-
+socket.emit('send-event-marker', eventData);
 // 1. 建立「事件類別」與「相對應圖示」的對照表
 const categoryIcons = {
     // 傳統災防
