@@ -1317,16 +1317,16 @@ function finishCurrentDrawing() {
                 renderOnlineUsers();
             });
 
-            socket.on('user_notification', function(data) {
-    const actionText = data.action === 'joined' ? '進入' : '離開';
-    const notificationText = `【${data.name}】已${actionText}頻道`;
-    
-    // 1. 右上角跳出提示
-    showToast(`[系統通知] ${notificationText}`);
-    
-    // 2. 同步寫入聊天室對話框
-    appendChatMessage('系統通知', notificationText, new Date().toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }));
-});
+           socket.on('user_notification', function(data) {
+                const actionText = data.action === 'joined' ? '已進入頻道' : '已離開頻道';
+                const notificationText = `${data.name}${actionText}`;
+                
+                // 右上角 Toast 提示
+                showToast(`[系統通知] ${notificationText}`);
+                
+                // 統一寫入聊天室對話框
+                appendChatMessage('系統通知', notificationText, new Date().toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+            });
 
             socket.on('receive_chat', function(data) {
                 appendChatMessage(data.sender, data.message, data.time);
