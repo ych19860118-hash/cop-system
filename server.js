@@ -87,8 +87,7 @@ app.post('/api/login', (req, res) => {
 });
 
 // --- Socket.io ---
-io.on('connection', (socket) => {
-    socket.on('join_room', (data) => {
+socket.on('join_room', (data) => {
         if (!rooms[data.roomName]) {
             rooms[data.roomName] = { password: "", objects: [], events: [], chatHistory: [], userList: [], lastActive: Date.now() };
         }
@@ -106,10 +105,15 @@ io.on('connection', (socket) => {
         rooms[data.roomName].userList.push(data.username);
         rooms[data.roomName].lastActive = Date.now();
         
+        // 💡 加上這段：把進入訊息存入歷史紀錄並廣播給所有人（包含自己與其他人）
+        const joinMsg = { sender: "系統通知", message: `${data.username}已進入頻道`, time: getFormattedTime() };
+        rooms[data.roomName].chatHistory.push(joinMsg);
+        io.to(data.roomName).emit('receive_chat', joinMsg);
+
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         
-        // 廣播給同房間其他人：某人進入頻道
+        // 廣播給同房間其他人（保留原本的 user_notification 給 Toast 用）
         socket.to(data.roomName).emit('user_notification', {
             name: data.username,
             action: 'joined'
