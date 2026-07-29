@@ -1137,11 +1137,30 @@ function finishCurrentDrawing() {
 
  function initDrawingEvents() {
             map.on('click', function(e) {
-                if (currentTool === 'event') {
-                    pendingEventLatLng = e.latlng;
-                    document.getElementById('event-modal').style.display = 'flex';
-                    return;
-                }
+if (currentTool === 'event') {
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+    
+    // 預設抓取目前選到的圖示與名稱（例如 🔥 與 火災濃煙）
+    const iconHtml = window.selectedDisasterIcon || '🔥'; 
+    const eventName = window.selectedDisasterName || '火災濃煙';
+
+    // 建立資料物件並傳送給後端 / 渲染在地圖上
+    const data = {
+        id: 'obj_' + Date.now(),
+        shapeType: "marker",
+        coordinates: [lat, lng],
+        message: eventName,
+        icon: iconHtml, // 把圖示存進資料裡
+        creator: currentUser,
+        time: getFormattedTime()
+    };
+
+    renderObjectOnMap(data); 
+    socket.emit('new_object', data);
+    switchTool('pan'); // 結束事件工具，回到平移
+    return;
+}
 
                 if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'search') return;
 
