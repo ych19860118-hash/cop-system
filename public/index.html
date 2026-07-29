@@ -793,505 +793,84 @@ function clearMeasure() {
     }
 }
 
-        const SERVER_URL = window.location.origin; 
-        let socket, currentUser = "", currentRoom = "", map, allMapLayers = {};
-        let allEventLayers = {};
-        let currentTool = "pan", tempPoints = [], tempShape = null;
-        let pendingEventLatLng = null, pendingPhotoBase64 = null;
-        let onlineUsersList = [];
-        let searchTempMarker = null; 
+// ==========================================
+// 全域變數與常數宣告 (確保只宣告一次)
+// ==========================================
+const SERVER_URL = window.location.origin; 
+let socket, currentUser = "", currentRoom = "", map, allMapLayers = {};
+let allEventLayers = {};
+let currentTool = "pan", tempPoints = [], tempShape = null;
+let pendingEventLatLng = null, pendingPhotoBase64 = null;
+let onlineUsersList = [];
+let searchTempMarker = null; 
 
-        // 雷達圖層全域變數
-        let radarLayer = null;
-        let isRadarVisible = false;
+// 雷達圖層全域變數
+let radarLayer = null;
+let isRadarVisible = false;
+
+// 唯一且完整的事件類別圖示對照表
 const categoryIcons = {
-    // 傳統災防
     '道路阻斷': '🚫',
     '火災': '🔥',
     '土石流': '⚠️',
     '淹水災情': '🌊',
     '設施損壞': '🏚️',
     '人員受困': '🆘',
-    
-    // 專業維生與危害
     '電力中斷': '⚡',
     '毒化災氣體外洩': '☣️',
     '通訊中斷': '📶',
-    
-    // 醫療與後勤
     '醫療救護站': '🏥',
     '物資發放點': '📦',
-    
-    // 戰術與防護
     '敵情可疑目標': '🎯',
     '落彈爆炸點': '💥',
     '前進指揮所': '🚩',
-    
-    '一般回報': '📌'
-};
-        function getFormattedTime() {
-            const now = new Date();
-            const m = String(now.getMonth() + 1).padStart(2, '0');
-            const d = String(now.getDate()).padStart(2, '0');
-            const h = String(now.getHours()).padStart(2, '0');
-            const min = String(now.getMinutes()).padStart(2, '0');
-            return `${m}/${d} ${h}:${min}`;
-        }
-
-        function checkAdminInput() {
-            const userIn = document.getElementById('username').value.trim().toLowerCase();
-            document.getElementById('admin-secret').style.display = (userIn === 'admin') ? 'block' : 'none';
-        }
-
-        function checkRoomType() {
-            const select = document.getElementById('room-select').value;
-            const pwdInput = document.getElementById('room-password');
-            const customRoomInput = document.getElementById('custom-room-name');
-            
-            customRoomInput.style.display = (select === 'custom') ? 'block' : 'none';
-            
-            if (select.startsWith("公開頻道")) {
-                pwdInput.value = "";
-                pwdInput.placeholder = "公開頻道免密碼即可進入";
-                pwdInput.disabled = true; 
-                pwdInput.style.opacity = "0.6";
-                
-                document.getElementById('login-error').style.color = "#39ff14"; 
-                document.getElementById('login-error').innerText = "提示：公開頻道不需輸入密碼。";
-            } else {
-                pwdInput.placeholder = "SECURE ACCESS KEY (房間密碼)";
-                pwdInput.disabled = false;
-                pwdInput.style.opacity = "1";
-                document.getElementById('login-error').innerText = "";
-            }
-        }
-
-        function showToast(message) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast-msg';
-            toast.innerText = message;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 3500);
-        }
-function initMapInstance() {
-    if (map) return; 
-    map = L.map('map', { doubleClickZoom: false, zoomControl: false, tapHold: false }).setView([23.6, 121], 8);
-    initMeasureTool(map);
-    
-    // 1. 定義多個底圖圖層 (Base Layers)
-    var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map); // 預設載入的標準街道圖
-
-    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-        attribution: 'Tiles &copy; Esri'
-    });
-
-    var terrainLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        maxZoom: 17,
-        attribution: 'Map data: © OpenStreetMap contributors, SRTM'
-    });
-
-    // 淺色簡約底圖
-    var cartoLightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 20,
-        attribution: '&copy; CARTO'
-    });
-
-    // 暗色簡約底圖 (適合夜間或戰情室大螢幕)
-    var cartoDarkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 20,
-        attribution: '&copy; CARTO'
-    });
-
-    // 國家地理世界地圖 (古典紙本風格與柔和地形)
-    var natGeoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 16,
-        attribution: 'Tiles &copy; Esri &mdash; National Geographic'
-    });
-
-    // 2. 設定圖層清單供控制項使用
-    var baseLayers = {
-        "標準街道圖": osmLayer,
-        "衛星空照圖": satelliteLayer,
-        "地形圖": terrainLayer,
-        "淺色簡約圖": cartoLightLayer,
-        "暗色簡約圖": cartoDarkLayer,
-        "國家地理地圖": natGeoLayer
-    };
-
-    // 3. 將圖層控制項加入地圖
-    L.control.layers(baseLayers, {}, {
-        position: 'topright',
-        collapsed: true
-    }).addTo(map);
-
-    // 阻斷控制項上的點擊事件穿透到 Leaflet 地圖
-    ['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) L.DomEvent.disableClickPropagation(el);
-    });
-
-    window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
-    initDrawingEvents();
-    initWeatherFeatures(map);
-}
-        function switchTool(tool) {
-            if ((currentTool === 'polyline' || currentTool === 'polygon') && tempPoints.length > 0) {
-                if (tempShape) {
-                    map.removeLayer(tempShape);
-                    tempShape = null;
-                }
-                tempPoints = [];
-            }
-
-            currentTool = tool; 
-            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-            if (tempShape && tool !== 'polyline' && tool !== 'polygon') { 
-                map.removeLayer(tempShape); 
-                tempShape = null; 
-            } 
-            if (tool !== 'polyline' && tool !== 'polygon') {
-                tempPoints = [];
-            }
-            
-            const id = 'btn-' + tool; 
-            if (document.getElementById(id)) document.getElementById(id).classList.add('active'); 
-
-            const isDrawing = (tool !== 'pan' && tool !== 'locate' && tool !== 'search');
-            const finishBtn = document.getElementById('btn-finish');
-            if (finishBtn) {
-                finishBtn.style.display = (tool === 'polyline' || tool === 'polygon') ? 'flex' : 'none';
-            }
-            
-            Object.values(allMapLayers).forEach(item => {
-                if (item.layer) {
-                    if (isDrawing) {
-                        try { item.layer.closePopup(); } catch(err) {}
-                        if (map.hasLayer(item.layer)) map.removeLayer(item.layer);
-                    } else {
-                        if (!map.hasLayer(item.layer)) item.layer.addTo(map);
-                    }
-                }
-                if (item.pin) {
-                    if (isDrawing) { if (map.hasLayer(item.pin)) map.removeLayer(item.pin); }
-                    else { if (!map.hasLayer(item.pin)) item.pin.addTo(map); }
-                }
-                if (item.resizePin) {
-                    if (isDrawing) { if (map.hasLayer(item.resizePin)) map.removeLayer(item.resizePin); }
-                    else { if (!map.hasLayer(item.resizePin)) item.resizePin.addTo(map); }
-                }
-                if (item.vertexPins) {
-                    item.vertexPins.forEach(vp => {
-                        if (isDrawing) { if (map.hasLayer(vp)) map.removeLayer(vp); }
-                        else { if (!map.hasLayer(vp)) vp.addTo(map); }
-                    });
-                }
-            });
-
-            Object.values(allEventLayers).forEach(item => {
-                if (item.layer) {
-                    if (isDrawing) {
-                        try { item.layer.closePopup(); } catch(err) {}
-                        if (map.hasLayer(item.layer)) map.removeLayer(item.layer);
-                    } else {
-                        if (!map.hasLayer(item.layer)) item.layer.addTo(map);
-                    }
-                }
-            });
-
-            if (tool === 'event') {
-                showToast("請在地圖上點擊要回報事件的位置");
-            } else if (tool === 'polyline' || tool === 'polygon') {
-                showToast("請在地圖上依序點擊各座標，長按畫面或點擊打勾按鈕即可結束");
-            } else if (isDrawing) {
-                showToast("已進入繪圖模式，現有物件已隱藏以方便新增");
-            } else {
-                showToast("已返回導覽模式");
-            }
-        }
-
-        function previewEvtPhoto(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 1280;
-                    const MAX_HEIGHT = 1280;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                    } else {
-                        if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    pendingPhotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
-                    const preview = document.getElementById('event-preview');
-                    preview.src = pendingPhotoBase64;
-                    preview.style.display = 'block';
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function closeEventModal() {
-            document.getElementById('event-modal').style.display = 'none';
-            document.getElementById('evt-desc').value = '';
-            const photoInput = document.getElementById('evt-photo');
-            photoInput.value = ''; 
-            document.getElementById('event-preview').style.display = 'none';
-            pendingEventLatLng = null;
-            pendingPhotoBase64 = null;
-            switchTool('pan');
-        }
-
-function submitEventReport() {
-    if (!pendingEventLatLng) return;
-    const category = document.getElementById('evt-category').value;
-    const description = document.getElementById('evt-desc').value.trim();
-
-    if (!description) {
-        showToast("⚠️ 請輸入事件詳細描述");
-        return;
-    }
-
-    const eventData = {
-        id: 'evt_' + Date.now(),
-        category: category,
-        description: description,
-        lat: pendingEventLatLng.lat,
-        lng: pendingEventLatLng.lng,
-        photoData: pendingPhotoBase64,
-        sender: currentUser,
-        time: getFormattedTime()
-    };
-
-    // 直接透過 Socket 廣播給所有連線的使用者（包含自己）
-    socket.emit('new_event', eventData);
-    
-    closeEventModal();
-    showToast("✅ 事件回報已廣播至頻道");
-}
-
-// 1. 建立「事件類別」與「相對應圖示」的對照表
-const categoryIcons = {
-    // 傳統災防
-    '道路阻斷': '🚫',
-    '火災': '🔥',
-    '土石流': '⚠️',
-    '淹水災情': '🌊',
-    '設施損壞': '🏚️',
-    '人員受困': '🆘',
-    
-    // 專業維生與危害
-    '電力中斷': '⚡',
-    '毒化災氣體外洩': '☣️',
-    '通訊中斷': '📶',
-    
-    // 醫療與後勤
-    '醫療救護站': '🏥',
-    '物資發放點': '📦',
-    
-    // 戰術與防護
-    '敵情可疑目標': '🎯',
-    '落彈爆炸點': '💥',
-    '前進指揮所': '🚩',
-    
     '一般回報': '📌'
 };
 
-    const iconSymbol = categoryIcons[category] || '⚠️';
-
-    // 2. 建立乾淨的圖示 (移除紅色外框、黑色圓底，只留純符號)
-    const customIcon = L.divIcon({
-        className: 'custom-disaster-marker',
-        html: `<div style="font-size: 28px; text-align: center; text-shadow: 0 0 4px #000;">${iconSymbol}</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
-    });
-
-    // 3. 建立帶有「刪除按鈕」的 Popup 內容
-    const markerId = 'evt_' + Date.now();
-    let popupContent = `<div style="max-width: 200px;" id="popup-${markerId}">
-        <b>${iconSymbol} ${category}</b>
-        <hr style="margin:4px 0;">
-        <p>${description}</p>`;
-    
-    if (pendingPhotoBase64) {
-        popupContent += `<img src="${pendingPhotoBase64}" style="width:100%; margin-top:5px; border-radius:4px;">`;
+// ==========================================
+// 登入與介面互動函式 (修復 checkAdminInput & login 未定義)
+// ==========================================
+function checkAdminInput() {
+    const userIn = document.getElementById('username').value.trim().toLowerCase();
+    const adminSecretEl = document.getElementById('admin-secret');
+    if (adminSecretEl) {
+        adminSecretEl.style.display = (userIn === 'admin') ? 'block' : 'none';
     }
-
-    // 加上刪除按鈕
-    popupContent += `<button onclick="deleteEventMarker('${markerId}')" style="margin-top: 8px; width: 100%; background: #ff4d4d; color: #fff; border: none; padding: 4px; border-radius: 4px; cursor: pointer;">刪除事件</button>
-    </div>`;
-
-    // 4. 建立 Marker 並存入變數以供刪除使用
-    const marker = L.marker([pendingEventLatLng.lat, pendingEventLatLng.lng], { icon: customIcon }).addTo(map);
-    marker.bindPopup(popupContent);
-    marker.options.eventId = markerId; // 綁定 ID
-
-    // 記錄到全域物件中以便管理刪除
-    if (!window.activeEventMarkers) window.activeEventMarkers = {};
-    window.activeEventMarkers[markerId] = marker;
-
-    // 5. 廣播與收尾
-    socket.emit('new_event', eventData);
-    closeEventModal();
-    showToast("✅ 事件回報已廣播至頻道");
 }
 
-function finishCurrentDrawing() {
-    if (typeof isMeasuring !== 'undefined' && isMeasuring) {
-        isMeasuring = false;
-        if (map) {
-            map.getContainer().style.cursor = '';
-        }
+function checkRoomType() {
+    const select = document.getElementById('room-select').value;
+    const pwdInput = document.getElementById('room-password');
+    const customRoomInput = document.getElementById('custom-room-name');
+    
+    if (customRoomInput) {
+        customRoomInput.style.display = (select === 'custom') ? 'block' : 'none';
+    }
+    
+    if (select.startsWith("公開頻道")) {
+        pwdInput.value = "";
+        pwdInput.placeholder = "公開頻道免密碼即可進入";
+        pwdInput.disabled = true; 
+        pwdInput.style.opacity = "0.6";
         
-        const finishBtn = document.getElementById('btn-finish');
-        if (finishBtn) {
-            finishBtn.style.display = 'none';
+        const errEl = document.getElementById('login-error');
+        if (errEl) {
+            errEl.style.color = "#39ff14"; 
+            errEl.innerText = "提示：公開頻道不需輸入密碼。";
         }
-        
-        showToast("✅ 已完成距離量測");
-        return;
+    } else {
+        pwdInput.placeholder = "SECURE ACCESS KEY (房間密碼)";
+        pwdInput.disabled = false;
+        pwdInput.style.opacity = "1";
+        const errEl = document.getElementById('login-error');
+        if (errEl) errEl.innerText = "";
     }
-
-    // --- 圖形繪製結束邏輯修正 ---
-    if (tempPoints.length < 2) {
-        showToast("⚠️ 至少需要兩個點才能完成線條或多邊形繪製");
-        return;
-    }
-    const type = currentTool;
-    if (type !== 'polyline' && type !== 'polygon') return;
-    
-    const msg = prompt(type === 'polyline' ? "請輸入細線說明：" : "請輸入範圍說明：") || "未命名範圍";
-
-    // 👇 修正此處：不要寫死為 marker，要帶入正確的 shapeType 與 coordinates
-    const data = { 
-        id: 'obj_' + Date.now(), 
-        shapeType: type, // 這裡會是 'polyline' 或 'polygon'
-        coordinates: type === 'polygon' ? [tempPoints] : tempPoints, // 多邊形需要包一層陣列
-        message: msg, 
-        creator: currentUser, 
-        color: "#3388ff", 
-        fillOpacity: type === 'polygon' ? 0.3 : 0, 
-        time: getFormattedTime() 
-    };    
-    
-    if (tempShape) {
-        map.removeLayer(tempShape);
-        tempShape = null;
-    }
-    
-    renderObjectOnMap(data); 
-    socket.emit('new_object', data); 
-    
-    // 清空暫存點並切換回 pan 模式
-    tempPoints = [];
-    switchTool('pan');
 }
 
- function initDrawingEvents() {
-            map.on('click', function(e) {
-                if (currentTool === 'event') {
-                    pendingEventLatLng = e.latlng;
-                    document.getElementById('event-modal').style.display = 'flex';
-                    return;
-                }
-
-                if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'search') return;
-
-                const lat = e.latlng.lat, lng = e.latlng.lng;
-                
-                if (currentTool === 'marker') {
-                    const msg = prompt("請輸入位置狀況：") || "未命名位置";
-                    const data = { id: 'obj_' + Date.now(), shapeType: "marker", coordinates: [lat, lng], message: msg, creator: currentUser, color: "#3388ff", fillOpacity: 0, time: getFormattedTime() };
-                    renderObjectOnMap(data); socket.emit('new_object', data); switchTool('pan');
-                } else if (currentTool === 'polyline' || currentTool === 'polygon') {
-                    tempPoints.push([lat, lng]);
-                    if (tempPoints.length === 1) {
-                        tempShape = (currentTool === 'polyline') ? L.polyline(tempPoints, {color: '#3388ff', weight: 6}).addTo(map) : L.polygon(tempPoints, {color: '#3388ff', fillOpacity: 0.3}).addTo(map);
-                    } else {
-                        tempShape.setLatLngs(tempPoints);
-                    }
-                } else if (currentTool === 'rectangle') {
-                    tempPoints.push({ lat: lat, lng: lng });
-                    if (tempPoints.length === 2) {
-                        const msg = prompt("請輸入區域說明：") || "未命名區域";
-                        const latMin = Math.min(tempPoints[0].lat, tempPoints[1].lat);
-                        const latMax = Math.max(tempPoints[0].lat, tempPoints[1].lat);
-                        const lngMin = Math.min(tempPoints[0].lng, tempPoints[1].lng);
-                        const lngMax = Math.max(tempPoints[0].lng, tempPoints[1].lng);
-                        const data = { id: 'obj_' + Date.now(), shapeType: "rectangle", coordinates: [[latMin, lngMin], [latMax, lngMax]], message: msg, creator: currentUser, color: "#3388ff", fillOpacity: 0.3, time: getFormattedTime() };
-                        renderObjectOnMap(data); socket.emit('new_object', data); switchTool('pan');
-                    }
-                } else if (currentTool === 'circle') {
-                    if (tempPoints.length === 0) {
-                        tempPoints.push({ lat: lat, lng: lng });
-                        tempShape = L.circle([lat, lng], {radius: 100, color: '#3388ff', fillOpacity: 0.3}).addTo(map);
-                    } else {
-                        const radius = map.distance(L.latLng(tempPoints[0].lat, tempPoints[0].lng), L.latLng(lat, lng));
-                        const msg = prompt("請輸入圓形範圍說明：") || "未命名圓形";
-                        const data = { id: 'obj_' + Date.now(), shapeType: "circle", coordinates: [tempPoints[0].lat, tempPoints[0].lng], radius: radius, message: msg, creator: currentUser, color: "#3388ff", fillOpacity: 0.3, time: getFormattedTime() };
-                        if (tempShape) map.removeLayer(tempShape);
-                        renderObjectOnMap(data); socket.emit('new_object', data); switchTool('pan');
-                    }
-                }
-            });
-
-            map.on('contextmenu', function(e) {
-                if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'event' || currentTool === 'search') return;
-                if (e.originalEvent) {
-        e.originalEvent.preventDefault();
-    }
-                finishCurrentDrawing();
-            });
-
-            let touchTimer = null;
-            const mapContainer = map.getContainer();
-
-            mapContainer.addEventListener('touchstart', function(e) {
-                if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'event' || currentTool === 'search') return;
-                if (e.touches.length !== 1) return; 
-                
-                touchTimer = setTimeout(function() {
-                    finishCurrentDrawing();
-                }, 600); 
-            }, { passive: true });
-
-            mapContainer.addEventListener('touchmove', function() {
-                if (touchTimer) {
-                    clearTimeout(touchTimer);
-                    touchTimer = null;
-                }
-            }, { passive: true });
-
-            mapContainer.addEventListener('touchend', function() {
-                if (touchTimer) {
-                    clearTimeout(touchTimer);
-                    touchTimer = null;
-                }
-            }, { passive: true });
-        }
-
-        async function login() {
+async function login() {
     const userIn = document.getElementById('username').value.trim();
     const passIn = document.getElementById('room-password').value;
-    const adminSecIn = document.getElementById('admin-secret').value;
+    const adminSecIn = document.getElementById('admin-secret') ? document.getElementById('admin-secret').value : "";
     const roomSel = document.getElementById('room-select').value;
     let targetRoom = roomSel === 'custom' ? document.getElementById('custom-room-name').value.trim() : roomSel;
     
@@ -1315,7 +894,8 @@ function finishCurrentDrawing() {
             document.getElementById('state-room').innerText = currentRoom;
             
             if (currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]')) {
-                document.getElementById('admin-clear-btn').style.display = 'block';
+                const adminClearBtn = document.getElementById('admin-clear-btn');
+                if (adminClearBtn) adminClearBtn.style.display = 'block';
             }
             
             initMapInstance(); 
@@ -1328,167 +908,286 @@ function finishCurrentDrawing() {
         document.getElementById('login-error').innerText = "連線後端錯誤！"; 
     }
 }
-       
-function initSocketAndLayers() {
-            socket = io(SERVER_URL);
-socket.off('object_added');
-    socket.on('object_added', data => {
-        renderObjectOnMap(data);
-    });
-            socket.emit('join_room', { roomName: currentRoom, username: currentUser });
-            socket.on('history_objects', function(objects) { if (Array.isArray(objects)) objects.forEach(obj => renderObjectOnMap(obj)); });
-            socket.on('history_events', function(events) { if (Array.isArray(events)) events.forEach(evt => renderEventOnMap(evt)); }); 
-            socket.on('history_chats', function(chats) {
-                if (Array.isArray(chats)) {
-                    document.getElementById('chat-messages').innerHTML = '';
-                    chats.forEach(chat => {
-                        appendChatMessage(chat.sender, chat.message, chat.time);
-                    });
-                }
-            });
-            socket.on('update_user_count', function(count) { document.getElementById('state-count').innerText = count; });
-            
-            socket.on('update_user_list', (users) => {
-                onlineUsersList = Array.isArray(users) ? users : [];
-                renderOnlineUsers();
-            });
 
-           socket.on('user_notification', function(data) {
-    const actionText = data.action === 'joined' ? '已進入頻道' : '已離開頻道';
-    const notificationText = `${data.name}${actionText}`;
+function getFormattedTime() {
+    const now = new Date();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${m}/${d} ${h}:${min}`;
+}
+
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    toast.innerText = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3500);
+}
+
+// ==========================================
+// 地圖與工具初始化
+// ==========================================
+function initMapInstance() {
+    if (map) return; 
+    map = L.map('map', { doubleClickZoom: false, zoomControl: false, tapHold: false }).setView([23.6, 121], 8);
+    initMeasureTool(map);
     
-    // 只保留右上角 Toast 提示
-    showToast(`[系統通知] ${notificationText}`);
-});
+    var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
+    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+    var terrainLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: 'Map data: © OpenStreetMap contributors' });
+    var cartoLightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 20, attribution: '&copy; CARTO' });
+    var cartoDarkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 20, attribution: '&copy; CARTO' });
+    var natGeoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: 'Tiles &copy; Esri' });
 
-            socket.on('receive_chat', function(data) {
-                appendChatMessage(data.sender, data.message, data.time);
+    var baseLayers = {
+        "標準街道圖": osmLayer,
+        "衛星空照圖": satelliteLayer,
+        "地形圖": terrainLayer,
+        "淺色簡約圖": cartoLightLayer,
+        "暗色簡約圖": cartoDarkLayer,
+        "國家地理地圖": natGeoLayer
+    };
 
-                const chatPanel = document.getElementById('chat-panel');
-                const isHidden = (window.getComputedStyle(chatPanel).display === 'none');
+    L.control.layers(baseLayers, {}, { position: 'topright', collapsed: true }).addTo(map);
 
-                if (isHidden) {
-                    const badge = document.getElementById('chat-badge');
-                    if (badge) badge.style.display = 'block';
-                }
-            });
-// ✔️ 改成這樣：先清掉舊的，再綁定帶有 Toast 的版本
-            socket.off('event_added');
-            socket.on('event_added', function(evtData) {
-                renderEventOnMap(evtData);
-                showToast(`🚨 [${evtData.category}] ${evtData.sender} 剛剛回報了新狀況！`);
-            });
+    ['custom-toolbar', 'typhoon-info', 'toggle-info-btn', 'toggle-chat-btn', 'toggle-users-btn', 'toggle-help-btn', 'users-panel', 'chat-panel', 'tactical-help-panel', 'event-modal', 'gps-modal', 'search-modal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) L.DomEvent.disableClickPropagation(el);
+    });
 
-            socket.on('event_deleted', function(eventId) {
-                if (allEventLayers[eventId]) {
-                    map.removeLayer(allEventLayers[eventId].layer);
-                    delete allEventLayers[eventId];
-                }
-                showToast("🗑️ 事件回報已被移除");
-            });
+    window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
+    initDrawingEvents();
+    initWeatherFeatures(map);
+}
 
-            let peerGPSMarkers = {}; 
-            socket.on('peer_gps_updated', function(gpsData) {
-                const pName = gpsData.username, pLatLng = L.latLng(gpsData.lat, gpsData.lng);
-                if (peerGPSMarkers[pName]) map.removeLayer(peerGPSMarkers[pName]);
-                const peerCenterDot = L.circle(pLatLng, { radius: gpsData.isApprox ? 250 : 10, color: '#39ff14', fillColor: '#39ff14', fillOpacity: 0.8, weight: 1 })
-                    .bindTooltip(pName + (gpsData.isApprox ? ' (概略)' : ''), { permanent: true, direction: 'top', className: 'tactical-tooltip', interactive: false });
-                const peerAccuracyCircle = L.circle(pLatLng, { radius: gpsData.accuracy, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 0.1, weight: 1 });
-                peerGPSMarkers[pName] = L.layerGroup([peerCenterDot, peerAccuracyCircle]).addTo(map);
-            });
+// ==========================================
+// 距離量測工具
+// ==========================================
+let isMeasuring = false;
+let measurePoints = [];
+let measurePolyline = null;
+let measureTooltips = [];
+let measureTotalDistance = 0;
 
-            socket.on('object_added', data => renderObjectOnMap(data));
-            socket.on('object_deleted', id => {
-                if (allMapLayers[id]) {
-                    map.removeLayer(allMapLayers[id].layer);
-                    if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
-                    if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
-                    if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
-                    delete allMapLayers[id];
-                }
-            });
-            
-            socket.on('clear_all_objects', () => {
-                Object.keys(allMapLayers).forEach(id => {
-                    map.removeLayer(allMapLayers[id].layer);
-                    if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
-                    if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
-                    if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
-                });
-                Object.keys(allEventLayers).forEach(id => {
-                    map.removeLayer(allEventLayers[id].layer);
-                });
-                allMapLayers = {};
-                allEventLayers = {};
-                showToast("⚠️ [安全公告] 系統最高權限指揮官已清空所有地圖圖資與事件！");
-            });
-        // 🔑 【直接把這段補在這裡】繪製完成時自動發送廣播
-            if (typeof map !== 'undefined' && map !== null) {
-                map.off('draw:created'); // 避免重複綁定
-                map.on('draw:created', function (e) {
-                    const layer = e.layer;
-                    const shapeType = e.layerType;
-                    
-                    let coordinates = shapeType === 'marker' ? [layer.getLatLng().lat, layer.getLatLng().lng] : 
-                                      shapeType === 'circle' ? [layer.getLatLng().lat, layer.getLatLng().lng] : 
-                                      layer.getLatLngs();
+function toggleMeasureTool() {
+    isMeasuring = true;
+    showMeasurePanel();
+    updateMeasurePanel(0);
+    measurePoints = [];
+    if (map) map.getContainer().style.cursor = 'crosshair';
 
-                    const mapObjectData = {
-                        id: 'obj_' + Date.now(),
-                        shapeType: shapeType,
-                        coordinates: coordinates,
-                        radius: shapeType === 'circle' ? layer.getRadius() : null,
-                        color: '#dc3545',
-                        message: '道路阻斷',
-                        creator: currentUser || '未知',
-                        time: new Date().toLocaleTimeString()
-                    };
+    if (typeof allMapLayers !== 'undefined') {
+        Object.values(allMapLayers).forEach(item => {
+            if (item.layer && map.hasLayer(item.layer)) map.removeLayer(item.layer);
+            if (item.pin && map.hasLayer(item.pin)) map.removeLayer(item.pin);
+            if (item.resizePin && map.hasLayer(item.resizePin)) map.removeLayer(item.resizePin);
+            if (item.vertexPins) item.vertexPins.forEach(vp => { if (map.hasLayer(vp)) map.removeLayer(vp); });
+        });
+    }
+    const finishBtn = document.getElementById('btn-finish');
+    if (finishBtn) finishBtn.style.display = 'flex';
+    showToast("📏 已啟動距離量測：請在地圖上依序點擊多個點，完成後請點擊工具列的打勾按鈕結束");
+}
 
-                    socket.emit('new_object', mapObjectData);
-                });
-            }
+function initMeasureTool(mapInstance) {
+    mapInstance.on('click', function(e) {
+        if (!isMeasuring) return;
+        const latlng = e.latlng;
+        measurePoints.push(latlng);
 
-        } // 👈 這是原本 initSocketAndLayers() 的結尾大括號
+        const dot = L.circleMarker(latlng, { radius: 5, color: '#ff5722', fillColor: '#ff5722', fillOpacity: 1 }).addTo(mapInstance);
+        measureTooltips.push(dot);
 
-        function renderOnlineUsers() {
-            const listEl = document.getElementById('users-list');
-            listEl.innerHTML = '';
-            if (onlineUsersList.length === 0) {
-                listEl.innerHTML = '<li style="color:#718096; padding:4px;">無在線用戶記錄</li>';
-                return;
-            }
-            onlineUsersList.forEach(name => {
-                const li = document.createElement('li');
-                li.className = 'user-item';
-                li.innerText = name;
-                listEl.appendChild(li);
-            });
-        }
-
-        function toggleUsersPanel() {
-            const panel = document.getElementById('users-panel');
-            const btn = document.getElementById('toggle-users-btn');
-            const isHidden = (window.getComputedStyle(panel).display === 'none');
-            panel.style.display = isHidden ? 'flex' : 'none';
-            if (isHidden) {
-                btn.classList.add('active');
-                renderOnlineUsers();
+        if (measurePoints.length > 1) {
+            if (!measurePolyline) {
+                measurePolyline = L.polyline(measurePoints, { color: '#ff5722', weight: 4, dashArray: '5, 5' }).addTo(mapInstance);
             } else {
-                btn.classList.remove('active');
+                measurePolyline.setLatLngs(measurePoints);
             }
-        }
 
-        function toggleHelpPanel() {
-            const panel = document.getElementById('tactical-help-panel');
-            const btn = document.getElementById('toggle-help-btn');
-            const isHidden = (window.getComputedStyle(panel).display === 'none');
-            panel.style.display = isHidden ? 'flex' : 'none';
-            if (isHidden) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
+            let totalDistance = 0;
+            for (let i = 0; i < measurePoints.length - 1; i++) {
+                totalDistance += measurePoints[i].distanceTo(measurePoints[i + 1]);
             }
+            updateMeasurePanel(totalDistance);
+
+            let distanceText = totalDistance >= 1000 ? (totalDistance / 1000).toFixed(2) + ' 公里' : Math.round(totalDistance) + ' 公尺';
+            dot.bindTooltip(`總距離: ${distanceText}`, { permanent: true, direction: 'top', className: 'measure-tooltip' }).openTooltip();
         }
+    });
+
+    mapInstance.on('dblclick', function(e) {
+        if (!isMeasuring) return;
+        L.DomEvent.stopPropagation(e);
+        finishMeasuring();
+    });
+}
+
+function showMeasurePanel() { document.getElementById("measure-panel").style.display = "block"; }
+function hideMeasurePanel() { document.getElementById("measure-panel").style.display = "none"; }
+function updateMeasurePanel(distance) {
+    const txt = distance >= 1000 ? (distance / 1000).toFixed(2) + " 公里" : Math.round(distance) + " 公尺";
+    const totalEl = document.getElementById("measure-total");
+    if (totalEl) totalEl.innerHTML = txt;
+}
+
+function finishMeasuring() {
+    isMeasuring = false;
+    hideMeasurePanel();
+    if (map) map.getContainer().style.cursor = '';
+
+    if (typeof allMapLayers !== 'undefined') {
+        Object.values(allMapLayers).forEach(item => {
+            if (item.layer && !map.hasLayer(item.layer)) item.layer.addTo(map);
+            if (item.pin && !map.hasLayer(item.pin)) item.pin.addTo(map);
+            if (item.resizePin && !map.hasLayer(item.resizePin)) item.resizePin.addTo(map);
+            if (item.vertexPins) item.vertexPins.forEach(vp => { if (!map.hasLayer(vp)) vp.addTo(map); });
+        });
+    }
+    const finishBtn = document.getElementById('btn-finish');
+    if (finishBtn) finishBtn.style.display = 'none';
+    showToast("✅ 已完成距離量測");
+}
+
+function clearMeasure() {
+    if (measurePolyline) {
+        map.removeLayer(measurePolyline);
+        measurePolyline = null;
+    }
+    measureTooltips.forEach(marker => map.removeLayer(marker));
+    measureTooltips = [];
+    measurePoints = [];
+    
+    if (typeof allMapLayers !== 'undefined') {
+        Object.values(allMapLayers).forEach(item => {
+            if (item.layer && !map.hasLayer(item.layer)) item.layer.addTo(map);
+            if (item.pin && !map.hasLayer(item.pin)) item.pin.addTo(map);
+            if (item.resizePin && !map.hasLayer(item.resizePin)) item.resizePin.addTo(map);
+            if (item.vertexPins) item.vertexPins.forEach(vp => { if (!map.hasLayer(vp)) vp.addTo(map); });
+        });
+    }
+}
+
+// ==========================================
+// 工具切換與事件回報處理
+// ==========================================
+function switchTool(tool) {
+    if ((currentTool === 'polyline' || currentTool === 'polygon') && tempPoints.length > 0) {
+        if (tempShape) { map.removeLayer(tempShape); tempShape = null; }
+        tempPoints = [];
+    }
+
+    currentTool = tool; 
+    document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+    if (tempShape && tool !== 'polyline' && tool !== 'polygon') { map.removeLayer(tempShape); tempShape = null; } 
+    if (tool !== 'polyline' && tool !== 'polygon') tempPoints = [];
+    
+    const id = 'btn-' + tool; 
+    if (document.getElementById(id)) document.getElementById(id).classList.add('active'); 
+
+    const isDrawing = (tool !== 'pan' && tool !== 'locate' && tool !== 'search');
+    const finishBtn = document.getElementById('btn-finish');
+    if (finishBtn) finishBtn.style.display = (tool === 'polyline' || tool === 'polygon') ? 'flex' : 'none';
+    
+    Object.values(allMapLayers).forEach(item => {
+        if (item.layer) {
+            if (isDrawing) { try { item.layer.closePopup(); } catch(err) {} if (map.hasLayer(item.layer)) map.removeLayer(item.layer); }
+            else { if (!map.hasLayer(item.layer)) item.layer.addTo(map); }
+        }
+        if (item.pin) {
+            if (isDrawing) { if (map.hasLayer(item.pin)) map.removeLayer(item.pin); }
+            else { if (!map.hasLayer(item.pin)) item.pin.addTo(map); }
+        }
+        if (item.resizePin) {
+            if (isDrawing) { if (map.hasLayer(item.resizePin)) map.removeLayer(item.resizePin); }
+            else { if (!map.hasLayer(item.resizePin)) item.resizePin.addTo(map); }
+        }
+        if (item.vertexPins) {
+            item.vertexPins.forEach(vp => {
+                if (isDrawing) { if (map.hasLayer(vp)) map.removeLayer(vp); }
+                else { if (!map.hasLayer(vp)) vp.addTo(map); }
+            });
+        }
+    });
+
+    Object.values(allEventLayers).forEach(item => {
+        if (item.layer) {
+            if (isDrawing) { try { item.layer.closePopup(); } catch(err) {} if (map.hasLayer(item.layer)) map.removeLayer(item.layer); }
+            else { if (!map.hasLayer(item.layer)) item.layer.addTo(map); }
+        }
+    });
+
+    if (tool === 'event') showToast("請在地圖上點擊要回報事件的位置");
+    else if (tool === 'polyline' || tool === 'polygon') showToast("請在地圖上依序點擊各座標，長按畫面或點擊打勾按鈕即可結束");
+    else if (isDrawing) showToast("已進入繪圖模式，現有物件已隱藏以方便新增");
+    else showToast("已返回導覽模式");
+}
+
+function previewEvtPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1280, MAX_HEIGHT = 1280;
+            let width = img.width, height = img.height;
+            if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } }
+            else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            pendingPhotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
+            const preview = document.getElementById('event-preview');
+            if (preview) { preview.src = pendingPhotoBase64; preview.style.display = 'block'; }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function closeEventModal() {
+    document.getElementById('event-modal').style.display = 'none';
+    document.getElementById('evt-desc').value = '';
+    const photoInput = document.getElementById('evt-photo');
+    if (photoInput) photoInput.value = ''; 
+    const preview = document.getElementById('event-preview');
+    if (preview) preview.style.display = 'none';
+    pendingEventLatLng = null;
+    pendingPhotoBase64 = null;
+    switchTool('pan');
+}
+
+function submitEventReport() {
+    if (!pendingEventLatLng) return;
+    const category = document.getElementById('evt-category').value;
+    const description = document.getElementById('evt-desc').value.trim();
+
+    if (!description) {
+        showToast("⚠️ 請輸入事件詳細描述");
+        return;
+    }
+
+    const eventData = {
+        id: 'evt_' + Date.now(),
+        category: category,
+        description: description,
+        lat: pendingEventLatLng.lat,
+        lng: pendingEventLatLng.lng,
+        photoData: pendingPhotoBase64,
+        sender: currentUser,
+        time: getFormattedTime()
+    };
+
+    socket.emit('new_event', eventData);
+    closeEventModal();
+    showToast("✅ 事件回報已廣播至頻道");
+}
 
 function renderEventOnMap(data) {
     if (allEventLayers[data.id]) {
@@ -1496,10 +1195,7 @@ function renderEventOnMap(data) {
         delete allEventLayers[data.id];
     }
 
-    // 1. 取得該類別對應的圖示符號
     const iconSymbol = categoryIcons[data.category] || '⚠️';
-
-    // 2. 修正：正確設定 DivIcon 的大小與 HTML 內容，確保圖案能顯示
     const evtIcon = L.divIcon({
         className: 'custom-disaster-marker',
         html: `<div style="font-size: 28px; text-align: center; text-shadow: 0 0 4px #000;">${iconSymbol}</div>`,
@@ -1510,15 +1206,11 @@ function renderEventOnMap(data) {
     const isCurrentlyDrawing = (currentTool !== 'pan' && currentTool !== 'locate' && currentTool !== 'search');
     const marker = L.marker([data.lat, data.lng], { icon: evtIcon });
     
-    if (!isCurrentlyDrawing) {
-        marker.addTo(map);
-    }
+    if (!isCurrentlyDrawing) marker.addTo(map);
     
-    // 綁定事件 ID 以便後續刪除管理
     marker.options.eventId = data.id;
     allEventLayers[data.id] = { layer: marker, creator: data.sender };
 
-    // 3. 建立 Popup 內容 (包含刪除按鈕權限判斷)
     const isOwner = (data.sender === currentUser);
     const isAdmin = currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]');
     let deleteBtnHTML = "";
@@ -1540,743 +1232,522 @@ function renderEventOnMap(data) {
     marker.bindPopup(popupHTML);
 }
 
-        function deleteEventReport(eventId) {
-            if (confirm("確定要刪除這個事件回報嗎？")) {
-                socket.emit('delete_event', eventId);
-            }
+function adminOrOwnerDeleteEvent(eventId) {
+    if (confirm("確定要刪除這個事件回報嗎？")) {
+        if (allEventLayers[eventId]) {
+            map.removeLayer(allEventLayers[eventId].layer);
+            delete allEventLayers[eventId];
         }
+        if (socket) socket.emit('delete_event', eventId);
+        showToast("🗑️ 已成功刪除事件回報");
+    }
+}
 
-        function toggleChatPanel() {
-            const panel = document.getElementById('chat-panel');
-            const btn = document.getElementById('toggle-chat-btn');
-            const isHidden = (window.getComputedStyle(panel).display === 'none');
-            panel.style.display = isHidden ? 'flex' : 'none';
-            if (isHidden) {
-                btn.classList.add('active');
-                document.getElementById('chat-input').focus();
-                const msgBox = document.getElementById('chat-messages');
-                msgBox.scrollTop = msgBox.scrollHeight;
+function deleteEventMarker(markerId) {
+    let targetMarker = null;
+    if (window.activeEventMarkers && window.activeEventMarkers[markerId]) {
+        targetMarker = window.activeEventMarkers[markerId];
+        delete window.activeEventMarkers[markerId];
+    } else if (typeof map !== 'undefined') {
+        map.eachLayer(function (layer) {
+            if (layer instanceof L.Marker && layer.options.eventId === markerId) targetMarker = layer;
+        });
+    }
+    if (targetMarker) {
+        map.removeLayer(targetMarker);
+        showToast("🗑️ 已刪除此事件標記");
+    }
+}
 
-                const badge = document.getElementById('chat-badge');
-                if (badge) badge.style.display = 'none';
-            } else {
-                btn.classList.remove('active');
-            }
-        }
-        function sendChat() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if (!text || !socket) return;
-            socket.emit('send_chat', text);
-            input.value = '';
-        }
-
-        function checkChatKey(e) {
-            if (e.key === 'Enter') sendChat();
-        }
-
-        function appendChatMessage(sender, message, time) {
-            const container = document.getElementById('chat-messages');
-            const bubble = document.createElement('div');
-            bubble.className = 'chat-bubble';
-            bubble.innerHTML = `<span class="sender">${sender}:</span>${escapeHtml(message)}<div class="time">${time}</div>`;
-            container.appendChild(bubble);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-
-        function renderObjectOnMap(data) {
-            if (allMapLayers[data.id]) {
-                map.removeLayer(allMapLayers[data.id].layer);
-                if (allMapLayers[data.id].pin) map.removeLayer(allMapLayers[data.id].pin);
-                if (allMapLayers[data.id].resizePin) map.removeLayer(allMapLayers[data.id].resizePin);
-                if (allMapLayers[data.id].vertexPins) allMapLayers[data.id].vertexPins.forEach(vp => map.removeLayer(vp));
-                delete allMapLayers[data.id];
-            }
-
-            let mainLayer, centerLatLng, isMyObject = (data.creator === currentUser);
-            const isAdmin = currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]');
-            const pts = data.coordinates;
-            const currentFillOpacity = (data.fillOpacity !== undefined) ? data.fillOpacity : 0;
-            const isCurrentlyDrawing = (currentTool !== 'pan' && currentTool !== 'locate' && currentTool !== 'search');
-
-            if (data.shapeType === "marker") {
-                const svgColor = data.color || "#3388ff";
-                const customMarkerIcon = L.divIcon({
-                    html: `<svg width="30" height="42" viewBox="0 0 24 24" fill="${svgColor}" stroke="#141619" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.6)); position: absolute; left: -15px; top: -42px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3" fill="#141619"></circle></svg>`,
-                    className: 'tactical-svg-marker'
-                });
-                mainLayer = L.marker(pts, { icon: customMarkerIcon, draggable: (isMyObject || isAdmin) }); 
-                centerLatLng = L.latLng(pts);
-            } else if (data.shapeType === "polyline") {
-                mainLayer = L.polyline(pts, { color: data.color, weight: 3 });
-                centerLatLng = L.polyline(pts).getBounds().getCenter();
-            } else if (data.shapeType === "rectangle") {
-                mainLayer = L.rectangle(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 });
-                centerLatLng = L.rectangle(pts).getBounds().getCenter();
-            } else if (data.shapeType === "circle") {
-                mainLayer = L.circle(pts, { radius: data.radius, color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 });
-                centerLatLng = L.latLng(pts);
-            } else if (data.shapeType === "polygon") {
-                mainLayer = L.polygon(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 });
-                centerLatLng = L.polygon(pts).getBounds().getCenter();
-            }
-            if (!mainLayer) return;
-
-            if (!isCurrentlyDrawing) {
-                mainLayer.addTo(map);
-            }
-            allMapLayers[data.id] = { layer: mainLayer, pin: null, resizePin: null, vertexPins: [], creator: data.creator };
-
-            if (data.shapeType === "marker") {
-                mainLayer.bindTooltip(data.message, { permanent: true, className: 'tactical-tooltip', interactive: false });
-            } else {
-                mainLayer.bindTooltip(data.message, { permanent: true, direction: 'center', className: 'tactical-tooltip', interactive: false });
-            }
-
-            if ((isMyObject || isAdmin) && data.shapeType !== "marker") {
-                const controlPin = L.marker(centerLatLng, { draggable: true, icon: L.divIcon({ html: '📌', className: 'control-pin-icon' }) });
-                if (!isCurrentlyDrawing) controlPin.addTo(map);
-                allMapLayers[data.id].pin = controlPin;
-
-                controlPin.on('click', function() { mainLayer.openPopup(centerLatLng); });
-
-                let startLatLng = centerLatLng;
-                controlPin.on('drag', function(e) {
-                    const nextLatLng = e.latlng;
-                    const offsetLat = nextLatLng.lat - startLatLng.lat;
-                    const offsetLng = nextLatLng.lng - startLatLng.lng;
-
-                    if (data.shapeType === "circle") { 
-                        mainLayer.setLatLng(nextLatLng); 
-                        if (allMapLayers[data.id].resizePin) {
-                            allMapLayers[data.id].resizePin.setLatLng(L.latLng(nextLatLng.lat, nextLatLng.lng + (mainLayer.getRadius() / 111320)));
-                        }
-                    } else if (data.shapeType === "rectangle") {
-                        const b = mainLayer.getBounds();
-                        mainLayer.setBounds([[b.getSouthWest().lat + offsetLat, b.getSouthWest().lng + offsetLng], [b.getNorthEast().lat + offsetLat, b.getNorthEast().lng + offsetLng]]);
-                        if (allMapLayers[data.id].resizePin) allMapLayers[data.id].resizePin.setLatLng(mainLayer.getBounds().getNorthEast());
-                    } else if (mainLayer.getLatLngs) {
-                        const movePoints = function(points) { return points.map(p => { if (Array.isArray(p)) return movePoints(p); return L.latLng(p.lat + offsetLat, p.lng + offsetLng); }); };
-                        mainLayer.setLatLngs(movePoints(mainLayer.getLatLngs()));
-                    }
-                    startLatLng = nextLatLng; 
-                });
-
-                controlPin.on('dragend', function() { 
-                    syncGeometryChanges(data, mainLayer); 
-                    refreshVertexPins(data, mainLayer);
-                });
-
-                if (data.shapeType === "circle" || data.shapeType === "rectangle") {
-                    const resizeLatLng = (data.shapeType === "circle") ? L.latLng(centerLatLng.lat, centerLatLng.lng + (data.radius / 111320)) : mainLayer.getBounds().getNorthEast();
-                    const resizePin = L.marker(resizeLatLng, { draggable: true, icon: L.divIcon({ html: '⤢', className: 'resize-pin-icon' }) });                    
-                    if (!isCurrentlyDrawing) resizePin.addTo(map);
-                    allMapLayers[data.id].resizePin = resizePin;
-
-                    resizePin.on('drag', function(e) {
-                        const newPinLatLng = e.latlng;
-                        if (data.shapeType === "circle") {
-                            const newRadius = map.distance(mainLayer.getLatLng(), newPinLatLng);
-                            if (newRadius > 5) mainLayer.setRadius(newRadius);
-                        } else if (data.shapeType === "rectangle") {
-                            const centerP = controlPin.getLatLng();
-                            const oppositeLat = centerP.lat - (newPinLatLng.lat - centerP.lat);
-                            const oppositeLng = centerP.lng - (newPinLatLng.lng - centerP.lng);
-                            mainLayer.setBounds([[oppositeLat, oppositeLng], [newPinLatLng.lat, newPinLatLng.lng]]);
-                        }
-                    });
-                    resizePin.on('dragend', function() { syncGeometryChanges(data, mainLayer); });
-                }
-
-                if (data.shapeType === "polyline" || data.shapeType === "polygon") {
-                    createVertexPins(data, mainLayer, isCurrentlyDrawing);
-                }
-
-            } else if ((isMyObject || isAdmin) && data.shapeType === "marker") {
-                mainLayer.on('dragend', function() {
-                    data.coordinates = [mainLayer.getLatLng().lat, mainLayer.getLatLng().lng];
-                    data.time = getFormattedTime();
-                    socket.emit('delete_object', data.id); 
-                    socket.emit('new_object', data);
-                });
-            }
-
-            mainLayer.on('click', function(e) {
-                if (currentTool !== 'pan' && currentTool !== 'locate') return;
-                L.DomEvent.stopPropagation(e);
-
-                const clickLatLng = e.latlng;
-                const clickLat = clickLatLng.lat.toFixed(4);
-                const clickLng = clickLatLng.lng.toFixed(4);
-
-                let popupContent = "";
-                const displayTime = data.time || "無紀錄";
-
-                if (isMyObject || isAdmin) {
-                    let fillOptionHTML = "";
-                    if (data.shapeType !== "marker" && data.shapeType !== "polyline") {
-                        fillOptionHTML = `
-                            <label>填滿模式：</label>
-                            <select id="edit-fill-${data.id}">
-                                <option value="0" ${currentFillOpacity === 0 ? 'selected':''}>不填滿 (透明空心)</option>
-                                <option value="0.3" ${currentFillOpacity === 0.3 ? 'selected':''}>半透明填滿 (30%)</option>
-                                <option value="0.6" ${currentFillOpacity === 0.6 ? 'selected':''}>深色填滿 (60%)</option>
-                            </select>`;
-                    }
-                    const adminBadge = (isAdmin && !isMyObject) ? `<b style="color:#dc3545;">⚠️ 管理員權限 (編輯他人圖資)</b><br>` : "";
-
-                    popupContent = `
-                        <div class="popup-menu" id="popup-root-${data.id}">
-                            ${adminBadge}
-                            <b>編輯${isMyObject ? '您回報的' : ''}圖形/災情</b><br>
-                            <small style="color:gray;">最後異動：${displayTime}</small><br><br>
-                            <label>修改描述：</label>
-                            <input type="text" id="edit-msg-${data.id}" value="${data.message}">
-                            <div>
-                                <label>邊框顏色變更：</label>
-                                <select id="edit-color-${data.id}">
-                                    <option value="#3388ff" ${data.color === '#3388ff'?'selected':''}>藍色 (一般區域)</option>
-                                    <option value="#dc3545" ${data.color === '#dc3545'?'selected':''}>紅色 (警戒區域)</option>
-                                    <option value="#28a745" ${data.color === '#28a745'?'selected':''}>綠色 (安全區域)</option>
-                                    <option value="#ffc107" ${data.color === '#ffc107'?'selected':''}>黃色 (注意區域)</option>
-                            </select>
-                            </div>
-                            ${fillOptionHTML}
-                            <button onclick="updateObject('${data.id}')">儲存修改</button>
-                            <button onclick="deleteObject('${data.id}')" class="del-btn">撤銷/刪除此圖形</button>
-                            
-                            <div id="popup-weather-${data.id}" style="margin-top:12px; border-top:1px dashed #2d3748; padding-top:8px; color:#cbd5e0;">
-                                ⏳ 正在查詢此點熱危害指標...
-                            </div>
-                        </div>`;
-                } else {
-                    popupContent = `
-                        <div class="popup-menu" id="popup-root-${data.id}">
-                            <b style="color:#ffc107;">⚠️ 區域回報狀況</b><br>
-                            <small style="color:gray;">通報時間：${displayTime}</small><br><br>
-                            <b>內容：</b>${data.message}<br>
-                            <small style="color:gray;">回報員: ${data.creator}</small>
-                            
-                            <div id="popup-weather-${data.id}" style="margin-top:12px; border-top:1px dashed #2d3748; padding-top:8px; color:#cbd5e0;">
-                                ⏳ 正在查詢此點熱危害指標...
-                            </div>
-                        </div>`;
-                }
-
-                if (data.shapeType === "marker") {
-                    mainLayer.bindPopup(popupContent).openPopup();
-                } else {
-                    mainLayer.bindPopup(popupContent).openPopup(clickLatLng);
-                }
-
-                fetch(`https://api.open-meteo.com/v1/forecast?latitude=${clickLat}&longitude=${clickLng}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`)
-                    .then(response => {
-                        if (!response.ok) throw new Error();
-                        return response.json();
-                    })
-                    .then(weatherData => {
-                        const current = weatherData.current;
-                        const temp = current.temperature_2m;
-                        const humidity = current.relative_humidity_2m;
-                        const code = current.weather_code;
-                        const heatIndex = (temp + (humidity * 0.1)).toFixed(1);
-
-                        let flagEmoji = "🔵", flagText = "藍旗 (注意)", flagColor = "#3b82f6", adviceText = "正常作息，充分補充水分。";
-                        if (heatIndex >= 35 && heatIndex < 40) {
-                            flagEmoji = "🟡"; flagText = "黃旗 (警戒)"; flagColor = "#eab308"; adviceText = "避免劇烈運動，強制飲水與休息。";
-                        } else if (heatIndex >= 40) {
-                            flagEmoji = "🔴"; flagText = "紅旗 (危險)"; flagColor = "#ef4444"; adviceText = "嚴禁高強度訓練，注意熱衰竭與中暑！";
-                        }
-
-                        let weatherDesc = "多雲時晴";
-                        if (code === 0) weatherDesc = "☀️ 晴朗無雲";
-                        else if (code >= 1 && code <= 3) weatherDesc = "⛅ 多雲時晴";
-                        else if (code >= 45 && code <= 48) weatherDesc = "🌫️ 霧氣籠罩";
-                        else if (code >= 51 && code <= 67) weatherDesc = "🌧️ 細雨/陣雨";
-                        else if (code >= 80 && code <= 82) weatherDesc = "🌦️ 陣雨";
-                        else if (code >= 95 && code <= 99) weatherDesc = "⛈️ 雷陣雨";
-
-                        const weatherHTML = `
-                            <div style="font-family: sans-serif; background-color: #1a1d21; border-left: 3px solid ${flagColor}; padding: 6px; border-radius: 2px;">
-                                <div style="display: flex; justify-content: space-between; color:#fff; font-weight:bold; font-size:12px;">
-                                    <span>${temp}°C (${weatherDesc})</span>
-                                    <span style="color:${flagColor};">${heatIndex} ${flagEmoji}</span>
-                                </div>
-                                <div style="font-size: 10px; color: #a0aec0; margin-top: 2px;">濕度: ${humidity}% | ${flagText}</div>
-                                <div style="font-size: 10px; color: #cbd5e0; margin-top: 4px; border-top: 1px dashed #2d3748; padding-top: 2px;">💡 ${adviceText}</div>
-                            </div>
-                        `;
-                        
-                        const container = document.getElementById(`popup-weather-${data.id}`);
-                        if (container) container.innerHTML = weatherHTML;
-                    })
-                    .catch(() => {
-                        const container = document.getElementById(`popup-weather-${data.id}`);
-                        if (container) container.innerHTML = `<span style="color:#ef4444; font-size:11px;">❌ 無法取得氣象資訊</span>`;
-                    });
-            });
-        }
-
-        function createVertexPins(data, mainLayer, isCurrentlyDrawing) {
-            const latlngs = mainLayer.getLatLngs();
-            const flatLatLngs = Array.isArray(latlngs[0]) ? latlngs[0] : latlngs;
-
-            flatLatLngs.forEach((latlng, index) => {
-                const vertexPin = L.marker(latlng, {
-                    draggable: true,
-                    icon: L.divIcon({ html: '', className: 'vertex-pin-icon' })
-                });
-
-                if (!isCurrentlyDrawing) {
-                    vertexPin.addTo(map);
-                }
-
-                vertexPin.on('drag', function(e) {
-                    const newLatLng = e.latlng;
-                    const currentCoords = mainLayer.getLatLngs();
-                    
-                    if (data.shapeType === "polyline") {
-                        currentCoords[index] = newLatLng;
-                        mainLayer.setLatLngs(currentCoords);
-                    } else if (data.shapeType === "polygon") {
-                        currentCoords[0][index] = newLatLng;
-                        mainLayer.setLatLngs(currentCoords);
-                    }
-                    
-                    if (allMapLayers[data.id] && allMapLayers[data.id].pin) {
-                        const newCenter = mainLayer.getBounds().getCenter();
-                        allMapLayers[data.id].pin.setLatLng(newCenter);
-                    }
-                });
-
-                vertexPin.on('dragend', function() {
-                    syncGeometryChanges(data, mainLayer);
-                    refreshVertexPins(data, mainLayer);
-                });
-
-                allMapLayers[data.id].vertexPins.push(vertexPin);
-            });
-        }
-
-        function refreshVertexPins(data, mainLayer) {
-            if (!allMapLayers[data.id]) return;
-            allMapLayers[data.id].vertexPins.forEach(vp => map.removeLayer(vp));
-            allMapLayers[data.id].vertexPins = [];
-
-            const latlngs = mainLayer.getLatLngs();
-            const flatLatLngs = Array.isArray(latlngs[0]) ? latlngs[0] : latlngs;
-
-            flatLatLngs.forEach((latlng, index) => {
-                const vertexPin = L.marker(latlng, {
-                    draggable: true,
-                    icon: L.divIcon({ html: '', className: 'vertex-pin-icon' })
-                });
-
-                const isDrawing = (currentTool !== 'pan' && currentTool !== 'locate' && currentTool !== 'search');
-                if (!isDrawing) {
-                    vertexPin.addTo(map);
-                }
-
-                vertexPin.on('drag', function(e) {
-                    const newLatLng = e.latlng;
-                    const currentCoords = mainLayer.getLatLngs();
-                    
-                    if (data.shapeType === "polyline") {
-                        currentCoords[index] = newLatLng;
-                        mainLayer.setLatLngs(currentCoords);
-                    } else if (data.shapeType === "polygon") {
-                        currentCoords[0][index] = newLatLng;
-                        mainLayer.setLatLngs(currentCoords);
-                    }
-
-                    if (allMapLayers[data.id] && allMapLayers[data.id].pin) {
-                        const newCenter = mainLayer.getBounds().getCenter();
-                        allMapLayers[data.id].pin.setLatLng(newCenter);
-                    }
-                });
-
-                vertexPin.on('dragend', function() {
-                    syncGeometryChanges(data, mainLayer);
-                    refreshVertexPins(data, mainLayer);
-                });
-
-                allMapLayers[data.id].vertexPins.push(vertexPin);
-            });
-        }
-
-        function syncGeometryChanges(data, mainLayer) {
-            let currentCoordinates = null, currentRadius = null;
-            if (data.shapeType === "circle") {
-                currentCoordinates = [mainLayer.getLatLng().lat, mainLayer.getLatLng().lng]; currentRadius = mainLayer.getRadius();
-            } else if (data.shapeType === "rectangle") {
-                const b = mainLayer.getBounds();
-                currentCoordinates = [[b.getSouthWest().lat, b.getSouthWest().lng], [b.getNorthEast().lat, b.getNorthEast().lng]];
-            } else if (mainLayer.getLatLngs) {
-                const rawLatLngs = mainLayer.getLatLngs();
-                currentCoordinates = Array.isArray(rawLatLngs[0]) ? rawLatLngs.map(ring => ring.map(p => [p.lat, p.lng])) : rawLatLngs.map(p => [p.lat, p.lng]);
-            }
-            data.time = getFormattedTime();
-            const currentMsg = (mainLayer.getTooltip && mainLayer.getTooltip()) ? mainLayer.getTooltip().getContent() : data.message;
-            const payload = { id: data.id, shapeType: data.shapeType, coordinates: currentCoordinates, radius: currentRadius, message: currentMsg, color: mainLayer.options.color || data.color, fillOpacity: mainLayer.options.fillOpacity !== undefined ? mainLayer.options.fillOpacity : 0, creator: data.creator, time: data.time };
-            socket.emit('delete_object', data.id); socket.emit('new_object', payload);
-        }
-
-        function deleteObject(objectId) {
-            if (confirm("確定要刪除/撤銷這個圖形回報嗎？")) {
-                if (allMapLayers[objectId]) {
-                    map.removeLayer(allMapLayers[objectId].layer);
-                    if (allMapLayers[objectId].pin) map.removeLayer(allMapLayers[objectId].pin);
-                    if (allMapLayers[objectId].resizePin) map.removeLayer(allMapLayers[objectId].resizePin);
-                    if (allMapLayers[objectId].vertexPins) allMapLayers[objectId].vertexPins.forEach(vp => map.removeLayer(vp));
-                    delete allMapLayers[objectId];
-                }
-                socket.emit('delete_object', objectId);
-            }
-        }
-
-        function adminClearAllObjects() {
-    if (currentUser.trim().toLowerCase() !== 'admin' && !currentUser.includes('[Admin]')) {
-        alert("權限不足：僅限 admin 帳號執行全圖資清空！");
+// ==========================================
+// 繪圖與圖形同步
+// ==========================================
+function finishCurrentDrawing() {
+    if (typeof isMeasuring !== 'undefined' && isMeasuring) {
+        finishMeasuring();
         return;
     }
-    if (confirm("🚨 警告：您即將以最高指揮官 (admin) 權限，刪除地圖上「所有頻道」或當前頻道的所有圖資與事件！此操作無法復原，確定執行？")) {
-        // 1. 清除所有一般圖形/標記
-        Object.keys(allMapLayers).forEach(id => {
+
+    if (tempPoints.length < 2) {
+        showToast("⚠️ 至少需要兩個點才能完成線條或多邊形繪製");
+        return;
+    }
+    const type = currentTool;
+    if (type !== 'polyline' && type !== 'polygon') return;
+    
+    const msg = prompt(type === 'polyline' ? "請輸入細線說明：" : "請輸入範圍說明：") || "未命名範圍";
+    const data = { 
+        id: 'obj_' + Date.now(), 
+        shapeType: type, 
+        coordinates: type === 'polygon' ? [tempPoints] : tempPoints, 
+        message: msg, 
+        creator: currentUser, 
+        color: "#3388ff", 
+        fillOpacity: type === 'polygon' ? 0.3 : 0, 
+        time: getFormattedTime() 
+    };    
+    
+    if (tempShape) { map.removeLayer(tempShape); tempShape = null; }
+    renderObjectOnMap(data); 
+    socket.emit('new_object', data); 
+    tempPoints = [];
+    switchTool('pan');
+}
+
+function initDrawingEvents() {
+    map.on('click', function(e) {
+        if (currentTool === 'event') {
+            pendingEventLatLng = e.latlng;
+            document.getElementById('event-modal').style.display = 'flex';
+            return;
+        }
+
+        if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'search') return;
+
+        const lat = e.latlng.lat, lng = e.latlng.lng;
+        
+        if (currentTool === 'marker') {
+            const msg = prompt("請輸入位置狀況：") || "未命名位置";
+            const data = { id: 'obj_' + Date.now(), shapeType: "marker", coordinates: [lat, lng], message: msg, creator: currentUser, color: "#3388ff", fillOpacity: 0, time: getFormattedTime() };
+            renderObjectOnMap(data); socket.emit('new_object', data); switchTool('pan');
+        } else if (currentTool === 'polyline' || currentTool === 'polygon') {
+            tempPoints.push([lat, lng]);
+            if (tempPoints.length === 1) {
+                tempShape = (currentTool === 'polyline') ? L.polyline(tempPoints, {color: '#3388ff', weight: 6}).addTo(map) : L.polygon(tempPoints, {color: '#3388ff', fillOpacity: 0.3}).addTo(map);
+            } else {
+                tempShape.setLatLngs(tempPoints);
+            }
+        } else if (currentTool === 'rectangle') {
+            tempPoints.push({ lat: lat, lng: lng });
+            if (tempPoints.length === 2) {
+                const msg = prompt("請輸入區域說明：") || "未命名區域";
+                const latMin = Math.min(tempPoints[0].lat, tempPoints[1].lat);
+                const latMax = Math.max(tempPoints[0].lat, tempPoints[1].lat);
+                const lngMin = Math.min(tempPoints[0].lng, tempPoints[1].lng);
+                const lngMax = Math.max(tempPoints[0].lng, tempPoints[1].lng);
+                const data = { id: 'obj_' + Date.now(), shapeType: "rectangle", coordinates: [[latMin, lngMin], [latMax, lngMax]], message: msg, creator: currentUser, color: "#3388ff", fillOpacity: 0.3, time: getFormattedTime() };
+                renderObjectOnMap(data); socket.emit('new_object', data); switchTool('pan');
+            }
+        } else if (currentTool === 'circle') {
+            if (tempPoints.length === 0) {
+                tempPoints.push({ lat: lat, lng: lng });
+                tempShape = L.circle([lat, lng], {radius: 100, color: '#3388ff', fillOpacity: 0.3}).addTo(map);
+            } else {
+                const radius = map.distance(L.latLng(tempPoints[0].lat, tempPoints[0].lng), L.latLng(lat, lng));
+                const msg = prompt("請輸入圓形範圍說明：") || "未命名圓形";
+                const data = { id: 'obj_' + Date.now(), shapeType: "circle", coordinates: [tempPoints[0].lat, tempPoints[0].lng], radius: radius, message: msg, creator: currentUser, color: "#3388ff", fillOpacity: 0.3, time: getFormattedTime() };
+                if (tempShape) map.removeLayer(tempShape);
+                renderObjectOnMap(data); socket.emit('new_object', data); switchTool('pan');
+            }
+        }
+    });
+
+    map.on('contextmenu', function(e) {
+        if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'event' || currentTool === 'search') return;
+        if (e.originalEvent) e.originalEvent.preventDefault();
+        finishCurrentDrawing();
+    });
+}
+
+// ==========================================
+// Socket.io 與即時通訊
+// ==========================================
+function initSocketAndLayers() {
+    socket = io(SERVER_URL);
+    socket.emit('join_room', { roomName: currentRoom, username: currentUser });
+
+    socket.on('history_objects', function(objects) { if (Array.isArray(objects)) objects.forEach(obj => renderObjectOnMap(obj)); });
+    socket.on('history_events', function(events) { if (Array.isArray(events)) events.forEach(evt => renderEventOnMap(evt)); }); 
+    socket.on('history_chats', function(chats) {
+        if (Array.isArray(chats)) {
+            document.getElementById('chat-messages').innerHTML = '';
+            chats.forEach(chat => appendChatMessage(chat.sender, chat.message, chat.time));
+        }
+    });
+
+    socket.on('update_user_count', function(count) { document.getElementById('state-count').innerText = count; });
+    socket.on('update_user_list', (users) => {
+        onlineUsersList = Array.isArray(users) ? users : [];
+        renderOnlineUsers();
+    });
+
+    socket.on('user_notification', function(data) {
+        const actionText = data.action === 'joined' ? '已進入頻道' : '已離開頻道';
+        showToast(`[系統通知] ${data.name}${actionText}`);
+    });
+
+    socket.on('receive_chat', function(data) {
+        appendChatMessage(data.sender, data.message, data.time);
+        const chatPanel = document.getElementById('chat-panel');
+        if (window.getComputedStyle(chatPanel).display === 'none') {
+            const badge = document.getElementById('chat-badge');
+            if (badge) badge.style.display = 'block';
+        }
+    });
+
+    socket.on('event_added', function(evtData) {
+        renderEventOnMap(evtData);
+        showToast(`🚨 [${evtData.category}] ${evtData.sender} 剛剛回報了新狀況！`);
+    });
+
+    socket.on('event_deleted', function(eventId) {
+        if (allEventLayers[eventId]) {
+            map.removeLayer(allEventLayers[eventId].layer);
+            delete allEventLayers[eventId];
+        }
+        showToast("🗑️ 事件回報已被移除");
+    });
+
+    let peerGPSMarkers = {}; 
+    socket.on('peer_gps_updated', function(gpsData) {
+        const pName = gpsData.username, pLatLng = L.latLng(gpsData.lat, gpsData.lng);
+        if (peerGPSMarkers[pName]) map.removeLayer(peerGPSMarkers[pName]);
+        const peerCenterDot = L.circle(pLatLng, { radius: gpsData.isApprox ? 250 : 10, color: '#39ff14', fillColor: '#39ff14', fillOpacity: 0.8, weight: 1 })
+            .bindTooltip(pName + (gpsData.isApprox ? ' (概略)' : ''), { permanent: true, direction: 'top', className: 'tactical-tooltip', interactive: false });
+        const peerAccuracyCircle = L.circle(pLatLng, { radius: gpsData.accuracy, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 0.1, weight: 1 });
+        peerGPSMarkers[pName] = L.layerGroup([peerCenterDot, peerAccuracyCircle]).addTo(map);
+    });
+
+    socket.on('object_added', data => renderObjectOnMap(data));
+    socket.on('object_deleted', id => {
+        if (allMapLayers[id]) {
             map.removeLayer(allMapLayers[id].layer);
             if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
             if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
             if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
-            socket.emit('delete_object', id);
+            delete allMapLayers[id];
+        }
+    });
+    
+    socket.on('clear_all_objects', () => {
+        Object.keys(allMapLayers).forEach(id => {
+            map.removeLayer(allMapLayers[id].layer);
         });
-        
-        // 👇 2. 新增：清除所有即時事件回報圖釘
         Object.keys(allEventLayers).forEach(id => {
-            if (allEventLayers[id] && allEventLayers[id].layer) {
-                map.removeLayer(allEventLayers[id].layer);
-            }
-            // 如果後端有提供刪除事件的 socket 指令，也可以在此同步觸發
-            socket.emit('delete_event', id);
+            map.removeLayer(allEventLayers[id].layer);
         });
-
-        // 3. 清空前端暫存物件
         allMapLayers = {};
         allEventLayers = {};
-        
-        if (socket) {
-            socket.emit('admin_clear_all');
+        showToast("⚠️ [安全公告] 系統最高權限指揮官已清空所有地圖圖資與事件！");
+    });
+}
+
+// ==========================================
+// 使用者與面板控制
+// ==========================================
+function renderOnlineUsers() {
+    const listEl = document.getElementById('users-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (onlineUsersList.length === 0) {
+        listEl.innerHTML = '<li style="color:#718096; padding:4px;">無在線用戶記錄</li>';
+        return;
+    }
+    onlineUsersList.forEach(name => {
+        const li = document.createElement('li');
+        li.className = 'user-item';
+        li.innerText = name;
+        listEl.appendChild(li);
+    });
+}
+
+function toggleUsersPanel() {
+    const panel = document.getElementById('users-panel');
+    const btn = document.getElementById('toggle-users-btn');
+    const isHidden = (window.getComputedStyle(panel).display === 'none');
+    panel.style.display = isHidden ? 'flex' : 'none';
+    if (isHidden) { btn.classList.add('active'); renderOnlineUsers(); } 
+    else { btn.classList.remove('active'); }
+}
+
+function toggleHelpPanel() {
+    const panel = document.getElementById('tactical-help-panel');
+    const btn = document.getElementById('toggle-help-btn');
+    const isHidden = (window.getComputedStyle(panel).display === 'none');
+    panel.style.display = isHidden ? 'flex' : 'none';
+    if (isHidden) btn.classList.add('active'); else btn.classList.remove('active');
+}
+
+function toggleChatPanel() {
+    const panel = document.getElementById('chat-panel');
+    const btn = document.getElementById('toggle-chat-btn');
+    const isHidden = (window.getComputedStyle(panel).display === 'none');
+    panel.style.display = isHidden ? 'flex' : 'none';
+    if (isHidden) {
+        btn.classList.add('active');
+        document.getElementById('chat-input').focus();
+        const msgBox = document.getElementById('chat-messages');
+        msgBox.scrollTop = msgBox.scrollHeight;
+        const badge = document.getElementById('chat-badge');
+        if (badge) badge.style.display = 'none';
+    } else {
+        btn.classList.remove('active');
+    }
+}
+
+function sendChat() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text || !socket) return;
+    socket.emit('send_chat', text);
+    input.value = '';
+}
+
+function checkChatKey(e) { if (e.key === 'Enter') sendChat(); }
+
+function appendChatMessage(sender, message, time) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.innerHTML = `<span class="sender">${sender}:</span>${escapeHtml(message)}<div class="time">${time}</div>`;
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+}
+
+function escapeHtml(text) {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ==========================================
+// 圖資渲染與管理
+// ==========================================
+function renderObjectOnMap(data) {
+    if (allMapLayers[data.id]) {
+        map.removeLayer(allMapLayers[data.id].layer);
+        if (allMapLayers[data.id].pin) map.removeLayer(allMapLayers[data.id].pin);
+        if (allMapLayers[data.id].resizePin) map.removeLayer(allMapLayers[data.id].resizePin);
+        if (allMapLayers[data.id].vertexPins) allMapLayers[data.id].vertexPins.forEach(vp => map.removeLayer(vp));
+        delete allMapLayers[data.id];
+    }
+
+    let mainLayer, centerLatLng, isMyObject = (data.creator === currentUser);
+    const isAdmin = currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]');
+    const pts = data.coordinates;
+    const currentFillOpacity = (data.fillOpacity !== undefined) ? data.fillOpacity : 0;
+    const isCurrentlyDrawing = (currentTool !== 'pan' && currentTool !== 'locate' && currentTool !== 'search');
+
+    if (data.shapeType === "marker") {
+        const svgColor = data.color || "#3388ff";
+        const customMarkerIcon = L.divIcon({
+            html: `<svg width="30" height="42" viewBox="0 0 24 24" fill="${svgColor}" stroke="#141619" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.6)); position: absolute; left: -15px; top: -42px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3" fill="#141619"></circle></svg>`,
+            className: 'tactical-svg-marker'
+        });
+        mainLayer = L.marker(pts, { icon: customMarkerIcon, draggable: (isMyObject || isAdmin) }); 
+        centerLatLng = L.latLng(pts);
+    } else if (data.shapeType === "polyline") {
+        mainLayer = L.polyline(pts, { color: data.color, weight: 3 });
+        centerLatLng = L.polyline(pts).getBounds().getCenter();
+    } else if (data.shapeType === "rectangle") {
+        mainLayer = L.rectangle(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 });
+        centerLatLng = L.rectangle(pts).getBounds().getCenter();
+    } else if (data.shapeType === "circle") {
+        mainLayer = L.circle(pts, { radius: data.radius, color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 });
+        centerLatLng = L.latLng(pts);
+    } else if (data.shapeType === "polygon") {
+        mainLayer = L.polygon(pts, { color: data.color, fillColor: data.color, fillOpacity: currentFillOpacity, weight: 3 });
+        centerLatLng = L.polygon(pts).getBounds().getCenter();
+    }
+    if (!mainLayer) return;
+
+    if (!isCurrentlyDrawing) mainLayer.addTo(map);
+    allMapLayers[data.id] = { layer: mainLayer, pin: null, resizePin: null, vertexPins: [], creator: data.creator };
+
+    if (data.shapeType === "marker") {
+        mainLayer.bindTooltip(data.message, { permanent: true, className: 'tactical-tooltip', interactive: false });
+    } else {
+        mainLayer.bindTooltip(data.message, { permanent: true, direction: 'center', className: 'tactical-tooltip', interactive: false });
+    }
+}
+
+function deleteObject(objectId) {
+    if (confirm("確定要刪除/撤銷這個圖形回報嗎？")) {
+        if (allMapLayers[objectId]) {
+            map.removeLayer(allMapLayers[objectId].layer);
+            if (allMapLayers[objectId].pin) map.removeLayer(allMapLayers[objectId].pin);
+            if (allMapLayers[objectId].resizePin) map.removeLayer(allMapLayers[objectId].resizePin);
+            if (allMapLayers[objectId].vertexPins) allMapLayers[objectId].vertexPins.forEach(vp => map.removeLayer(vp));
+            delete allMapLayers[objectId];
         }
+        socket.emit('delete_object', objectId);
+    }
+}
+
+function adminClearAllObjects() {
+    if (currentUser.trim().toLowerCase() !== 'admin' && !currentUser.includes('[Admin]')) {
+        alert("權限不足：僅限 admin 帳號執行全圖資清空！");
+        return;
+    }
+    if (confirm("🚨 警告：您即將以最高指揮官 (admin) 權限，刪除地圖上所有圖資與事件！")) {
+        Object.keys(allMapLayers).forEach(id => {
+            map.removeLayer(allMapLayers[id].layer);
+            socket.emit('delete_object', id);
+        });
+        Object.keys(allEventLayers).forEach(id => {
+            if (allEventLayers[id] && allEventLayers[id].layer) map.removeLayer(allEventLayers[id].layer);
+            socket.emit('delete_event', id);
+        });
+        allMapLayers = {};
+        allEventLayers = {};
+        if (socket) socket.emit('admin_clear_all');
         showToast("🚨 您已成功清除所有圖資與事件！");
     }
 }
 
-        function updateObject(objectId) {
-            const newMsg = document.getElementById(`edit-msg-${objectId}`).value.trim();
-            const newColor = document.getElementById(`edit-color-${objectId}`).value;
-            const fillSelect = document.getElementById(`edit-fill-${objectId}`);
-            const newFillOpacity = fillSelect ? parseFloat(fillSelect.value) : 0;
+// ==========================================
+// GPS 與搜尋功能
+// ==========================================
+function openGPSModal() { document.getElementById('gps-modal').style.display = 'flex'; }
+function closeGPSModal() { document.getElementById('gps-modal').style.display = 'none'; }
 
-            if (allMapLayers[objectId]) {
-                const cache = allMapLayers[objectId];
-                const isCircle = !!cache.layer.options.radius;
-                const isRect = !isCircle && cache.layer instanceof L.Rectangle;
-                const isMarker = !isCircle && !isRect && (cache.layer instanceof L.Marker);
-                const isPolyline = cache.layer instanceof L.Polyline && !(cache.layer instanceof L.Polygon);
-                let sType = "polygon"; 
-                if (isCircle) sType = "circle"; else if (isRect) sType = "rectangle"; else if (isMarker) sType = "marker"; else if (isPolyline) sType = "polyline";
-
-                let currentCoordinates = null, currentRadius = null;
-                if (isCircle) {
-                    currentCoordinates = [cache.layer.getLatLng().lat, cache.layer.getLatLng().lng]; currentRadius = cache.layer.getRadius();
-                } else if (isRect) {
-                    const b = cache.layer.getBounds();
-                    currentCoordinates = [[b.getSouthWest().lat, b.getSouthWest().lng], [b.getNorthEast().lat, b.getNorthEast().lng]];
-                } else if (isMarker) {
-                    currentCoordinates = [cache.layer.getLatLng().lat, cache.layer.getLatLng().lng];
-                } else {
-                    const rawLatLngs = cache.layer.getLatLngs();
-                    currentCoordinates = Array.isArray(rawLatLngs[0]) ? rawLatLngs.map(ring => ring.map(p => [p.lat, p.lng])) : rawLatLngs.map(p => [p.lat, p.lng]);
-                }
-
-                const updatedData = { id: objectId, shapeType: sType, coordinates: currentCoordinates, radius: currentRadius, message: newMsg, color: newColor, fillOpacity: newFillOpacity, creator: cache.creator, time: getFormattedTime() };
-                map.removeLayer(cache.layer); if (cache.pin) map.removeLayer(cache.pin); if (cache.resizePin) map.removeLayer(cache.resizePin); if (cache.vertexPins) cache.vertexPins.forEach(vp => map.removeLayer(vp));
-                delete allMapLayers[objectId];
-                renderObjectOnMap(updatedData);
-                socket.emit('delete_object', objectId); socket.emit('new_object', updatedData);
-            }
-        }
-
-        function toggleStatusPanel() {
-            const panel = document.getElementById('typhoon-info');
-            const btn = document.getElementById('toggle-info-btn');
-            const isHidden = (window.getComputedStyle(panel).display === 'none');
-            panel.style.display = isHidden ? 'block' : 'none';
-            if (isHidden) btn.classList.add('active'); else btn.classList.remove('active');
-        }
-
-        function openGPSModal() {
-            document.getElementById('gps-modal').style.display = 'flex';
-        }
-        function closeGPSModal() {
-            document.getElementById('gps-modal').style.display = 'none';
-        }
-
-        function openSearchModal() {
-            switchTool('search');
-            document.getElementById('search-modal').style.display = 'flex';
-        }
-        function closeSearchModal() {
-            document.getElementById('search-modal').style.display = 'none';
-            switchTool('pan');
-        }
+function openSearchModal() {
+    switchTool('search');
+    document.getElementById('search-modal').style.display = 'flex';
+}
+function closeSearchModal() {
+    document.getElementById('search-modal').style.display = 'none';
+    switchTool('pan');
+}
 
 async function executeSearchLocation() {
     const query = document.getElementById('search-query-input').value.trim();
     if (!query) { alert("請輸入有效的地址或經緯度座標！"); return; }
     closeSearchModal();
 
-    // 檢查是否為經緯度格式 (例如: 25.033, 121.565)
     const coordMatch = query.match(/^([-+]?\d{1,2}(?:\.\d+)?),\s*([-+]?\d{1,3}(?:\.\d+)?)$/);
-    
     if (coordMatch) {
-        const lat = parseFloat(coordMatch[1]);
-        const lng = parseFloat(coordMatch[2]);
+        const lat = parseFloat(coordMatch[1]), lng = parseFloat(coordMatch[2]);
         map.setView([lat, lng], 16);
         if (searchTempMarker) map.removeLayer(searchTempMarker);
-        
-        // 順便反查該座標的地址名稱
-        const reverseAddress = await reverseGeocode(lat, lng);
-        searchTempMarker = L.marker([lat, lng]).addTo(map).bindPopup(`📍 座標定位: ${lat}, ${lng}<br><small>${reverseAddress || ''}</small>`).openPopup();
+        searchTempMarker = L.marker([lat, lng]).addTo(map).bindPopup(`📍 座標定位: ${lat}, ${lng}`).openPopup();
         showToast("✅ 已成功根據座標定位");
     } else {
         showToast("🔍 正在透過 OpenStreetMap 查詢地址...");
-        // 透過 Nominatim 官方 API 進行正向地理編碼，帶入 zh-Hant 與 email 識別
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&accept-language=zh-Hant&email=your-email@example.com`;
-        
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&accept-language=zh-Hant`;
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error("網路連線回應錯誤");
             const data = await response.json();
-            
             if (data && data.length > 0) {
-                const lat = parseFloat(data[0].lat);
-                const lng = parseFloat(data[0].lon);
+                const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
                 map.setView([lat, lng], 16);
                 if (searchTempMarker) map.removeLayer(searchTempMarker);
-                
                 searchTempMarker = L.marker([lat, lng]).addTo(map).bindPopup(`📍 ${data[0].display_name}`).openPopup();
                 showToast("✅ 已成功找到該地址");
             } else {
-                alert("找不到該地址，請嘗試更精確的關鍵字或直接輸入經緯度。");
+                alert("找不到該地址，請嘗試更精確的關鍵字。");
             }
         } catch (error) {
-            console.error("地址查詢失敗:", error);
             alert("網路查詢失敗，請檢查網路連線。");
         }
     }
 }
 
-        let myLocationMarker = null;
-        function processGPS(mode) {
-            closeGPSModal();
-            if (!navigator.geolocation) { alert("錯誤：不支援 GPS 定位功能！"); return; }
-            const locateBtn = document.getElementById('btn-locate'); 
-            locateBtn.style.color = '#0d0e10'; locateBtn.style.background = '#22c55e';
-            
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    let userLat = position.coords.latitude;
-                    let userLng = position.coords.longitude;
-                    let accuracy = position.coords.accuracy;
-                    let isApprox = (mode === 'approx');
-
-                    if (isApprox) {
-                        userLat += (Math.random() - 0.5) * 0.004;
-                        userLng += (Math.random() - 0.5) * 0.004;
-                        accuracy = Math.max(accuracy, 300);
-                        showToast("ℹ️ 已切換為概略定位，您的實際位置已進行模糊處理");
-                    } else {
-                        showToast("✅ 已回報您的精準位置");
-                    }
-
-                    const currentLatLng = L.latLng(userLat, userLng);
-                    if (myLocationMarker) map.removeLayer(myLocationMarker);
-                    
-                    const myCenterDot = L.circle(currentLatLng, { radius: isApprox ? 250 : 10, color: '#39ff14', fillColor: '#39ff14', fillOpacity: isApprox ? 0.4 : 0.9, weight: 1 })
-                        .bindTooltip(currentUser + (isApprox ? " (概略)" : " (您)"), { permanent: true, direction: 'top', className: 'tactical-tooltip' });
-                    const myAccuracyCircle = L.circle(currentLatLng, { radius: accuracy, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 0.15, weight: 1 });
-                    
-                    myLocationMarker = L.layerGroup([myCenterDot, myAccuracyCircle]).addTo(map);
-                    map.setView(currentLatLng, isApprox ? 13 : 15, { animate: true, duration: 1.5 });
-                    
-                    if (socket) {
-                        socket.emit('share_my_gps', { lat: userLat, lng: userLng, accuracy: accuracy, isApprox: isApprox });
-                    }
-                    locateBtn.style.color = '#39ff14'; locateBtn.style.background = '#1a1d21';
-                },
-                function() { 
-                    locateBtn.style.color = '#39ff14'; locateBtn.style.background = '#1a1d21'; 
-                    alert("定位失敗：請檢查手機定位權限。"); 
-                },
-                { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-            );
-        }
-
-        // 初始化氣象圖資與點擊天氣查詢功能
-        function initWeatherFeatures(mapInstance) {
-            if (!mapInstance) return;
-
-            // 載入 RainViewer 雷達圖
-            fetch('https://api.rainviewer.com/public/weather-maps.json')
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.radar || !data.radar.past || data.radar.past.length === 0) return;
-
-                    const latestRadar = data.radar.past[data.radar.past.length - 1];
-                    const path = latestRadar.path;
-                    const host = data.host;
-                    const radarUrl = `${host}${path}/256/{z}/{x}/{y}/1/1_1.png`;
-
-                    radarLayer = L.tileLayer(radarUrl, {
-                        attribution: '<a href="https://www.rainviewer.com/api.html" target="_blank">RainViewer</a>',
-                        opacity: 0.5,
-                        zIndex: 999
-                    });
-
-                    createLayerToggleButton(mapInstance);
-                })
-                .catch(err => console.error("RainViewer 載入失敗:", err));
-
-          // 地圖點擊氣象與熱危害查詢
-mapInstance.on('click', function(e) {
-    if (typeof isMeasuring !== 'undefined' && isMeasuring) return;
+let myLocationMarker = null;
+function processGPS(mode) {
+    closeGPSModal();
+    if (!navigator.geolocation) { alert("錯誤：不支援 GPS 定位功能！"); return; }
+    const locateBtn = document.getElementById('btn-locate'); 
+    locateBtn.style.color = '#0d0e10'; locateBtn.style.background = '#22c55e';
     
-    if (currentTool !== 'pan' && currentTool !== 'locate') return;
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            let userLat = position.coords.latitude, userLng = position.coords.longitude, accuracy = position.coords.accuracy;
+            let isApprox = (mode === 'approx');
 
-    const lat = e.latlng.lat.toFixed(4);
-    const lng = e.latlng.lng.toFixed(4);
-
-    const popup = L.popup()
-        .setLatLng(e.latlng)
-        .setContent(`<div style="font-family: sans-serif; font-size:13px; padding: 5px;">⏳ 正在查詢 [${lat}, ${lng}] 的天氣與熱危害指標...</div>`)
-        .openOn(mapInstance);
-
-    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`)
-        .then(response => {
-            if (!response.ok) throw new Error("天氣資料查詢失敗");
-            return response.json();
-        })
-        .then(weatherData => {
-            const current = weatherData.current;
-            const temp = current.temperature_2m;
-            const humidity = current.relative_humidity_2m;
-            const code = current.weather_code;
-
-            const heatIndex = (temp + (humidity * 0.1)).toFixed(1);
-
-            let flagEmoji = "🔵";
-            let flagText = "藍旗 (注意)";
-            let flagColor = "#3b82f6";
-            let adviceText = "正常作息，充分補充水分。";
-
-            if (heatIndex >= 35 && heatIndex < 40) {
-                flagEmoji = "🟡";
-                flagText = "黃旗 (警戒)";
-                flagColor = "#eab308";
-                adviceText = "避免劇烈運動，強制飲水與休息。";
-            } else if (heatIndex >= 40) {
-                flagEmoji = "🔴";
-                flagText = "紅旗 (危險)";
-                flagColor = "#ef4444";
-                adviceText = "嚴禁高強度訓練，注意熱衰竭與中暑！";
+            if (isApprox) {
+                userLat += (Math.random() - 0.5) * 0.004;
+                userLng += (Math.random() - 0.5) * 0.004;
+                accuracy = Math.max(accuracy, 300);
+                showToast("ℹ️ 已切換為概略定位");
+            } else {
+                showToast("✅ 已回報您的精準位置");
             }
 
-            let weatherDesc = "多雲時晴";
-            if (code === 0) weatherDesc = "☀️ 晴朗無雲";
-            else if (code >= 1 && code <= 3) weatherDesc = "⛅ 多雲時晴";
-            else if (code >= 45 && code <= 48) weatherDesc = "🌫️ 霧氣籠罩";
-            else if (code >= 51 && code <= 67) weatherDesc = "🌧️ 細雨/陣雨";
-            else if (code >= 71 && code <= 77) weatherDesc = "❄️ 降雪";
-            else if (code >= 80 && code <= 82) weatherDesc = "🌦️ 陣雨";
-            else if (code >= 95 && code <= 99) weatherDesc = "⛈️ 雷陣雨";
+            const currentLatLng = L.latLng(userLat, userLng);
+            if (myLocationMarker) map.removeLayer(myLocationMarker);
+            
+            const myCenterDot = L.circle(currentLatLng, { radius: isApprox ? 250 : 10, color: '#39ff14', fillColor: '#39ff14', fillOpacity: isApprox ? 0.4 : 0.9, weight: 1 })
+                .bindTooltip(currentUser + (isApprox ? " (概略)" : " (您)"), { permanent: true, direction: 'top', className: 'tactical-tooltip' });
+            const myAccuracyCircle = L.circle(currentLatLng, { radius: accuracy, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 0.15, weight: 1 });
+            
+            myLocationMarker = L.layerGroup([myCenterDot, myAccuracyCircle]).addTo(map);
+            map.setView(currentLatLng, isApprox ? 13 : 15, { animate: true, duration: 1.5 });
+            
+            if (socket) socket.emit('share_my_gps', { lat: userLat, lng: userLng, accuracy: accuracy, isApprox: isApprox });
+            locateBtn.style.color = '#39ff14'; locateBtn.style.background = '#1a1d21';
+        },
+        function() { 
+            locateBtn.style.color = '#39ff14'; locateBtn.style.background = '#1a1d21'; 
+            alert("定位失敗：請檢查手機定位權限。"); 
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+}
 
-            const content = `
-                <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-width: 190px; line-height: 1.4;">
-                    <h4 style="margin: 0 0 4px 0; color: #1e293b; font-size: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">📍 即時氣象與熱危害</h4>
-                    <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">座標：${lat}, ${lng}</div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                        <span style="font-size: 22px; font-weight: bold; color: #1e293b;">${temp}°C</span>
-                        <span style="font-size: 12px; color: #64748b;">${weatherDesc}</span>
-                    </div>
-                    <div style="font-size: 12px; color: #475569; margin-bottom: 8px;">濕度: ${humidity}%</div>
-                    
-                    <div style="background-color: #f8fafc; border-left: 4px solid ${flagColor}; padding: 6px 8px; border-radius: 0 4px 4px 0; margin-bottom: 6px;">
-                        <div style="font-size: 11px; color: #64748b; font-weight: 500;">中暑危險係數</div>
-                        <div style="font-size: 16px; font-weight: bold; color: ${flagColor};">${heatIndex}</div>
-                        <div style="font-size: 12px; font-weight: bold; margin-top: 2px;">${flagEmoji} ${flagText}</div>
-                    </div>
-                    
-                    <div style="font-size: 11px; color: #475569; border-top: 1px dashed #cbd5e1; padding-top: 4px; font-weight: 500;">
-                        💡 建議: ${adviceText}
-                    </div>
-                </div>
-            `;
-            popup.setContent(content);
+// ==========================================
+// 天氣與氣象圖資初始化
+// ==========================================
+function initWeatherFeatures(mapInstance) {
+    if (!mapInstance) return;
+
+    fetch('https://api.rainviewer.com/public/weather-maps.json')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.radar || !data.radar.past || data.radar.past.length === 0) return;
+            const latestRadar = data.radar.past[data.radar.past.length - 1];
+            const radarUrl = `${data.host}${latestRadar.path}/256/{z}/{x}/{y}/1/1_1.png`;
+
+            radarLayer = L.tileLayer(radarUrl, { attribution: 'RainViewer', opacity: 0.5, zIndex: 999 });
+            createLayerToggleButton(mapInstance);
         })
-        .catch(err => {
-            console.error("天氣 API 錯誤:", err);
-            popup.setContent(`<div style="color: red; font-size: 12px;">❌ 無法取得該點 [${lat}, ${lng}] 天氣與係數資訊</div>`);
+        .catch(err => console.error("RainViewer 載入失敗:", err));
+}
+
+function createLayerToggleButton(mapInstance) {
+    const toggleControl = L.control({ position: 'topleft' });
+    toggleControl.onAdd = function() {
+        const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control tactical-layer-control');
+        div.style.marginLeft = '65px'; div.style.marginTop = '12px';   
+        const a = L.DomUtil.create('a', '', div);
+        a.href = '#'; a.innerHTML = '☔';
+        
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.on(a, 'click', function(e) {
+            L.DomEvent.preventDefault(e);
+            L.DomEvent.stopPropagation(e);
+            if (isRadarVisible) {
+                mapInstance.removeLayer(radarLayer);
+                a.style.background = '#1a1d21';
+            } else {
+                mapInstance.addLayer(radarLayer);
+                a.style.background = '#22c55e';
+            }
+            isRadarVisible = !isRadarVisible;
         });
-});
-        }
+        return div;
+    };
+    toggleControl.addTo(mapInstance);
+}
 
-        function createLayerToggleButton(mapInstance) {
-            const toggleControl = L.control({ position: 'topleft' });
-
-            toggleControl.onAdd = function() {
-                const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control tactical-layer-control');
-                div.style.marginLeft = '65px';  
-                div.style.marginTop = '12px';   
-
-                const a = L.DomUtil.create('a', '', div);
-                a.href = '#';
-                a.innerHTML = '☔';
-                
-                L.DomEvent.disableClickPropagation(div);
-                L.DomEvent.on(a, 'click', function(e) {
-                    L.DomEvent.preventDefault(e);
-                    L.DomEvent.stopPropagation(e);
-                    if (isRadarVisible) {
-                        mapInstance.removeLayer(radarLayer);
-                        a.style.background = '#1a1d21';
-                    } else {
-                        mapInstance.addLayer(radarLayer);
-                        a.style.background = '#22c55e';
-                    }
-                    isRadarVisible = !isRadarVisible;
-                });
-
-                return div;
-            };
-
-            toggleControl.addTo(mapInstance);
-        }
-       document.addEventListener('DOMContentLoaded', () => {
+// ==========================================
+// 頁面載入綁定 (DOMContentLoaded)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('data-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalBody = document.getElementById('modal-body');
     
-    document.getElementById("btnMeasureFinish").onclick = finishMeasuring;
+    const btnMeasureFinish = document.getElementById("btnMeasureFinish");
+    if (btnMeasureFinish) btnMeasureFinish.onclick = finishMeasuring;
 
-    document.getElementById("btnMeasureCancel").onclick = function(){
-        clearMeasure();
-        hideMeasurePanel();
-        isMeasuring = false;
-    };
+    const btnMeasureCancel = document.getElementById("btnMeasureCancel");
+    if (btnMeasureCancel) {
+        btnMeasureCancel.onclick = function() {
+            clearMeasure();
+            hideMeasurePanel();
+            isMeasuring = false;
+        };
+    }
 
     const cancelEvtBtn = document.querySelector('.btn-cancel-evt');
     if (cancelEvtBtn) {
@@ -2286,93 +1757,84 @@ mapInstance.on('click', function(e) {
             switchTool('pan');
         });
     }
-// 查詢最新地震資料
-document.getElementById('btn-earthquake').addEventListener('click', async () => {
-    try {
-        modalTitle.textContent = "最新地震資料 (中央氣象署)";
-        modalBody.innerHTML = "資料載入中...";
-        modal.style.display = 'flex';
 
-        const response = await fetch('/api/earthquake/data');
-        const earthquakes = await response.json();
-        
-        if (!Array.isArray(earthquakes) || earthquakes.length === 0) {
-            modalBody.innerHTML = "<p>目前無地震資料。</p>";
-            return;
-        }
+    // 地震資料按鈕
+    const eqBtn = document.getElementById('btn-earthquake');
+    if (eqBtn) {
+        eqBtn.addEventListener('click', async () => {
+            try {
+                modalTitle.textContent = "最新地震資料 (中央氣象署)";
+                modalBody.innerHTML = "資料載入中...";
+                modal.style.display = 'flex';
 
-        // 只取第一筆資料
-        const eq = earthquakes[0];
-        const info = eq.EarthquakeInfo || {};
-        const time = info.OriginTime || eq.ReportTime || '時間未知';
-        
-        let magnitude = info.Magnitude?.MagnitudeValue || info.EarthquakeMagnitude?.[0]?.MagnitudeValue || 'N/A';
-        const content = eq.ReportContent || info.Location || '';
-        
-        if (magnitude === 'N/A' && content.includes('規模')) {
-            const match = content.match(/規模\s*([0-9.]+)/);
-            if (match) magnitude = match[1];
-        }
+                const response = await fetch('/api/earthquake/data');
+                const earthquakes = await response.json();
+                if (!Array.isArray(earthquakes) || earthquakes.length === 0) {
+                    modalBody.innerHTML = "<p>目前無地震資料。</p>";
+                    return;
+                }
 
-        const depth = info.FocalDepth || '未知';
-        const location = info.Location || content;
+                const eq = earthquakes[0];
+                const info = eq.EarthquakeInfo || {};
+                const time = info.OriginTime || eq.ReportTime || '時間未知';
+                let magnitude = info.Magnitude?.MagnitudeValue || 'N/A';
+                const content = eq.ReportContent || info.Location || '';
+                if (magnitude === 'N/A' && content.includes('規模')) {
+                    const match = content.match(/規模\s*([0-9.]+)/);
+                    if (match) magnitude = match[1];
+                }
+                const depth = info.FocalDepth || '未知';
+                const location = info.Location || content;
 
-        // 直接組合成單筆資料的 HTML 結構（不需要用迴圈和 ul/li）
-        let html = `
-            <div style="padding: 4px 0; line-height: 1.8;">
-                <strong>${time.replace('T', ' ').substring(0, 16)}</strong><br>
-                📍 <strong>震央：</strong>${location}<br>
-                ⚡ <strong>規模：</strong>${magnitude} 級 ｜ 🌊 <strong>深度：</strong>${depth} 公里
-            </div>
-        `;
-        
-        modalBody.innerHTML = html;
-    } catch (error) {
-        console.error('無法取得地震資料', error);
-        modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得地震資料，請稍後再試。</p>";
-    }
-});
-// 查詢氣象資料
-document.getElementById('btn-weather').addEventListener('click', async () => {
-    try {
-        modalTitle.textContent = "即時氣象站資料 (中央氣象署)";
-        modalBody.innerHTML = "資料載入中...";
-        modal.style.display = 'flex';
-
-        const response = await fetch('/api/weather/data');
-        const weatherData = await response.json();
-        
-        const stations = weatherData.records?.Station || [];
-        if (stations.length === 0) {
-            modalBody.innerHTML = "<p>目前無氣象資料。</p>";
-            return;
-        }
-
-        let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
-        stations.slice(0, 15).forEach(st => {
-            // 👉 O-A0003-001 的 WeatherElement 是直接包含 AirTemperature 屬性的物件
-            const elements = st.WeatherElement || {};
-            let temp = elements.AirTemperature ?? 'N/A';
-            
-            // 如果剛好低於絕對零度或異常值（如 -99），則顯示 N/A
-            if (temp === -99 || temp === '-99') temp = 'N/A';
-
-            html += `<li style="margin-bottom: 8px;">
-                <strong>${st.StationName} (${st.StationId})</strong> - 
-                氣溫：${temp}°C
-            </li>`;
+                modalBody.innerHTML = `
+                    <div style="padding: 4px 0; line-height: 1.8;">
+                        <strong>${time.replace('T', ' ').substring(0, 16)}</strong><br>
+                        📍 <strong>震央：</strong>${location}<br>
+                        ⚡ <strong>規模：</strong>${magnitude} 級 ｜ 🌊 <strong>深度：</strong>${depth} 公里
+                    </div>`;
+            } catch (error) {
+                modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得地震資料，請稍後再試。</p>";
+            }
         });
-        html += '</ul>';
-        modalBody.innerHTML = html;
-    } catch (error) {
-        console.error('無法取得氣象資料', error);
-        modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得氣象資料，請稍後再試。</p>";
+    }
+
+    // 氣象資料按鈕
+    const weatherBtn = document.getElementById('btn-weather');
+    if (weatherBtn) {
+        weatherBtn.addEventListener('click', async () => {
+            try {
+                modalTitle.textContent = "即時氣象站資料 (中央氣象署)";
+                modalBody.innerHTML = "資料載入中...";
+                modal.style.display = 'flex';
+
+                const response = await fetch('/api/weather/data');
+                const weatherData = await response.json();
+                const stations = weatherData.records?.Station || [];
+                if (stations.length === 0) {
+                    modalBody.innerHTML = "<p>目前無氣象資料。</p>";
+                    return;
+                }
+
+                let html = '<ul style="padding-left: 20px; margin: 0; line-height: 1.6;">';
+                stations.slice(0, 15).forEach(st => {
+                    const elements = st.WeatherElement || {};
+                    let temp = elements.AirTemperature ?? 'N/A';
+                    if (temp === -99 || temp === '-99') temp = 'N/A';
+                    html += `<li style="margin-bottom: 8px;"><strong>${st.StationName}</strong> - 氣溫：${temp}°C</li>`;
+                });
+                html += '</ul>';
+                modalBody.innerHTML = html;
+            } catch (error) {
+                modalBody.innerHTML = "<p style='color: #ff6b6b;'>無法取得氣象資料，請稍後再試。</p>";
+            }
+        });
     }
 });
-});
-    function closeDataModal() {
-        document.getElementById('data-modal').style.display = 'none';
-    }
+
+function closeDataModal() {
+    const modal = document.getElementById('data-modal');
+    if (modal) modal.style.display = 'none';
+}
         // ==========================================
 // 請貼在 JS 檔案的最底部
 // ==========================================
