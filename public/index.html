@@ -1111,7 +1111,7 @@ function submitEventReport() {
     window.allEventLayers[markerId] = { layer: marker };
 
     // 6. 統一發送給伺服器（使用後端有在監聽的事件名稱，例如 'add_event'，請根據你後端實際接收的事件名稱調整，這裡示範用 'add_event'）
-    socket.emit('add_event', eventData);
+    socket.emit('new_event', eventData);
 
     closeEventModal();
     showToast("✅ 事件回報已廣播至頻道");
