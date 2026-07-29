@@ -1328,11 +1328,6 @@ socket.off('object_added');
     socket.on('object_added', data => {
         renderObjectOnMap(data);
     });
-
-    socket.off('event_added');
-    socket.on('event_added', evtData => {
-        renderEventOnMap(evtData);
-    });
             socket.emit('join_room', { roomName: currentRoom, username: currentUser });
             socket.on('history_objects', function(objects) { if (Array.isArray(objects)) objects.forEach(obj => renderObjectOnMap(obj)); });
             socket.on('history_events', function(events) { if (Array.isArray(events)) events.forEach(evt => renderEventOnMap(evt)); }); 
