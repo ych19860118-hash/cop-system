@@ -1108,10 +1108,40 @@ function initDrawingEvents() {
                 const lat = e.latlng.lat, lng = e.latlng.lng;
                 
                 if (currentTool === 'marker') {
-                    const msg = prompt("請輸入位置狀況：") || "未命名位置";
-                    const data = { id: 'obj_' + Date.now(), shapeType: "marker", coordinates: [lat, lng], message: msg, creator: currentUser, color: "#3388ff", fillOpacity: 0, time: getFormattedTime() };
-                    renderObjectOnMap(data); socket.emit('new_object', data); switchTool('pan');
-                } else if (currentTool === 'polyline' || currentTool === 'polygon') {
+                    let choice = prompt(
+                        "請選擇防救災圖標類型代碼：\n" +
+                        "command - 前進指揮所\n" +
+                        "fire - 消防車/火災\n" +
+                        "medical - 醫療救護站\n" +
+                        "shelter - 避難收容所\n" +
+                        "police - 警察/維安\n" +
+                        "hazard - 災害/警戒點", 
+                        "fire"
+                    );
+                    
+                    if (!choice || !disasterIcons[choice]) {
+                        choice = "hazard";
+                    }
+
+                    const iconInfo = disasterIcons[choice];
+                    const msg = prompt("請輸入位置狀況說明：") || iconInfo.name;
+
+                    const data = { 
+                        id: 'obj_' + Date.now(), 
+                        shapeType: "marker", 
+                        coordinates: [lat, lng], 
+                        message: msg, 
+                        creator: currentUser, 
+                        color: iconInfo.color, 
+                        iconType: choice,      
+                        fillOpacity: 0, 
+                        time: getFormattedTime() 
+                    };
+                    
+                    renderObjectOnMap(data); 
+                    socket.emit('new_object', data); 
+                    switchTool('pan');
+                }else if (currentTool === 'polyline' || currentTool === 'polygon') {
                     tempPoints.push([lat, lng]);
                     if (tempPoints.length === 1) {
                         tempShape = (currentTool === 'polyline') ? L.polyline(tempPoints, {color: '#3388ff', weight: 6}).addTo(map) : L.polygon(tempPoints, {color: '#3388ff', fillOpacity: 0.3}).addTo(map);
