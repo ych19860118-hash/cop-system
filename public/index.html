@@ -1407,7 +1407,7 @@ function finishCurrentDrawing() {
             }
             allEventLayers[data.id] = { layer: marker, creator: data.sender };
 
-            marker.bindTooltip(`[${data.category}]`, { permanent: true, direction: 'top', className: 'tactical-tooltip', interactive: false });
+            //marker.bindTooltip(`[${data.category}]`, { permanent: true, direction: 'top', className: 'tactical-tooltip', interactive: false });
 
 const isOwner = (data.sender === currentUser);
 const isAdmin = currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]');
