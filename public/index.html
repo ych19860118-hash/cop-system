@@ -2331,20 +2331,18 @@ if (typeof map !== 'undefined' && map && !window.hasMeasureDblClick) {
 }
         // 💡 貼在這裡：新增的管理者/擁有者事件刪除函式
 function adminOrOwnerDeleteEvent(eventId) {
-    console.log("準備刪除的 eventId:", eventId); // 👈 加上這行
     if (confirm("確定要刪除這個事件回報嗎？")) {
-        // 1. 馬上通知後端刪除該事件（後端會順便廣播給其他人）
+        // 1. 通知後端刪除
         if (socket) {
             socket.emit('delete_event', eventId);
         }
 
-        // 2. 馬上將你自己的地圖圖層移除
-        if (allEventLayers[eventId]) {
-            map.removeLayer(allEventLayers[eventId].layer);
-            delete allEventLayers[eventId];
+        // 2. 從地圖上移除（加上 window. 確保跟建立時讀取同一個全域物件）
+        if (window.allEventLayers && window.allEventLayers[eventId]) {
+            map.removeLayer(window.allEventLayers[eventId].layer);
+            delete window.allEventLayers[eventId];
         }
 
-        // 3. 顯示提示
         showToast("🗑️ 已成功刪除事件回報");
     }
 }
