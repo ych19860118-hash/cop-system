@@ -1419,49 +1419,57 @@ function finishCurrentDrawing() {
             }
         }
 
-        function renderEventOnMap(data) {
-            if (allEventLayers[data.id]) {
-                map.removeLayer(allEventLayers[data.id].layer);
-                delete allEventLayers[data.id];
-            }
+function renderEventOnMap(data) {
+    // 1. 防重複：如果已經存在就先移除
+    if (window.allEventLayers && window.allEventLayers[data.id]) {
+        map.removeLayer(window.allEventLayers[data.id].layer);
+        delete window.allEventLayers[data.id];
+    }
 
- const evtIcon = L.divIcon({
-    html: '', // 清空 SVG 內容
-    className: 'tactical-event-marker',
-    iconSize: [0, 0], // 設定大小為 0
-    iconAnchor: [0, 0]
-});
+    // 2. 定義類別與圖示對照表
+    const categoryIcons = {
+        '道路阻斷': '🚫', '火災': '🔥', '土石流': '⚠️', '淹水災情': '🌊',
+        '設施損壞': '🏚️', '人員受困': '🆘', '電力中斷': '⚡', '毒化災氣體外洩': '☣️',
+        '通訊中斷': '📶', '醫療救護站': '🏥', '物資發放點': '📦', '敵情可疑目標': '🎯',
+        '落彈爆炸點': '💥', '前進指揮所': '🚩', '一般回報': '📌'
+    };
 
-            const isCurrentlyDrawing = (currentTool !== 'pan' && currentTool !== 'locate' && currentTool !== 'search');
-            const marker = L.marker([data.lat, data.lng], { icon: evtIcon });
-            if (!isCurrentlyDrawing) {
-                marker.addTo(map);
-            }
-            allEventLayers[data.id] = { layer: marker, creator: data.sender };
+    const iconSymbol = categoryIcons[data.category] || '⚠️';
 
-            //marker.bindTooltip(`[${data.category}]`, { permanent: true, direction: 'top', className: 'tactical-tooltip', interactive: false });
+    // 3. 恢復正常的自定義圖示（不再是 0 大小與空內容）
+    const evtIcon = L.divIcon({
+        className: 'custom-disaster-marker',
+        html: `<div style="font-size: 28px; text-align: center; text-shadow: 0 0 4px #000;">${iconSymbol}</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+    });
 
-const isOwner = (data.sender === currentUser);
-const isAdmin = currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]');
-let deleteBtnHTML = "";
-if (isOwner || isAdmin) {
-    // 💡 點擊時改呼叫自定義的完整清除函式，確保自己跟別人的地圖都會同步刪除
-    deleteBtnHTML = `<button onclick="adminOrOwnerDeleteEvent('${data.id}')" class="del-btn" style="margin-top:8px;">刪除此事件回報</button>`;
+    const marker = L.marker([data.lat, data.lng], { icon: evtIcon }).addTo(map);
+
+    // 4. 記錄到全域圖層管理
+    if (!window.allEventLayers) window.allEventLayers = {};
+    window.allEventLayers[data.id] = { layer: marker, creator: data.sender };
+
+    const isOwner = (data.sender === currentUser);
+    const isAdmin = currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]');
+    let deleteBtnHTML = "";
+    if (isOwner || isAdmin) {
+        deleteBtnHTML = `<button onclick="adminOrOwnerDeleteEvent('${data.id}')" class="del-btn" style="margin-top:8px;">刪除此事件回報</button>`;
+    }
+
+    let photoHTML = data.photoData ? `<img src="${data.photoData}" class="event-popup-img" alt="事件照片">` : "";
+    const popupHTML = `
+        <div class="popup-menu">
+            <b style="color:#dc3545;">🚨 現場即時狀況回報</b><br>
+            <small style="color:gray;">時間：${data.time || ''}</small><br><br>
+            <b>類別：</b>${data.category}<br>
+            <b>說明：</b>${data.description || '無詳細說明'}<br>
+            ${photoHTML}
+            <small style="color:gray; display:block; margin-top:6px;">回報人：${data.sender}</small>
+            ${deleteBtnHTML}
+        </div>`;
+    marker.bindPopup(popupHTML);
 }
-
-            let photoHTML = data.photoData ? `<img src="${data.photoData}" class="event-popup-img" alt="事件照片">` : "";
-            const popupHTML = `
-                <div class="popup-menu">
-                    <b style="color:#dc3545;">🚨 現場即時狀況回報</b><br>
-                    <small style="color:gray;">時間：${data.time}</small><br><br>
-                    <b>類別：</b>${data.category}<br>
-                    <b>說明：</b>${data.description || '無詳細說明'}<br>
-                    ${photoHTML}
-                    <small style="color:gray; display:block; margin-top:6px;">回報人：${data.sender}</small>
-                    ${deleteBtnHTML}
-                </div>`;
-            marker.bindPopup(popupHTML);
-        }
 
         function deleteEventReport(eventId) {
             if (confirm("確定要刪除這個事件回報嗎？")) {
