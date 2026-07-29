@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>COP System協同地理圖資</title>
@@ -615,29 +614,6 @@ cursor:pointer;
     <div id="toast-container"></div>
     <div id="map"></div>
     <script>
-        // 防救災圖示定義與對照表
-        const disasterIcons = {
-            command: { name: "前進指揮所", color: "#e74c3c", icon: "fa-flag" },
-            fire:    { name: "消防車/火災", color: "#e67e22", icon: "fa-fire" },
-            medical: { name: "醫療救護站", color: "#2ecc71", icon: "fa-briefcase-medical" },
-            shelter: { name: "避難收容所", color: "#3498db", icon: "fa-house-chimney" },
-            police:  { name: "警察/維安", color: "#9b59b6", icon: "fa-shield-halved" },
-            hazard:  { name: "災害/警戒點", color: "#f1c40f", icon: "fa-triangle-exclamation" }
-        };
-
-        // 產生 SVG / FontAwesome 圖示的函式
-        function createDisasterIcon(type) {
-            const info = disasterIcons[type] || disasterIcons['hazard'];
-            return L.divIcon({
-                html: `<div style="background-color: ${info.color}; width: 32px; height: 32px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 5px rgba(0,0,0,0.5);">
-                         <i class="fa-solid ${info.icon}" style="color: white; font-size: 14px;"></i>
-                       </div>`,
-                className: 'custom-disaster-marker',
-                iconSize: [32, 32],
-                iconAnchor: [16, 16],
-                popupAnchor: [0, -16]
-            });
-        }
         let isMeasuring = false;
 let measurePoints = [];
 let measurePolyline = null;
@@ -662,7 +638,7 @@ function toggleMeasureTool() {
                 item.vertexPins.forEach(vp => { if (map.hasLayer(vp)) map.removeLayer(vp); });
             }
         });
-        }
+    }
     // 顯示打勾按鈕
     const finishBtn = document.getElementById('btn-finish');
     if (finishBtn) {
@@ -1118,7 +1094,7 @@ function finishCurrentDrawing() {
     switchTool('pan');
 }
 
-function initDrawingEvents() {
+ function initDrawingEvents() {
             map.on('click', function(e) {
                 if (currentTool === 'event') {
                     pendingEventLatLng = e.latlng;
@@ -1131,40 +1107,10 @@ function initDrawingEvents() {
                 const lat = e.latlng.lat, lng = e.latlng.lng;
                 
                 if (currentTool === 'marker') {
-                    let choice = prompt(
-                        "請選擇防救災圖標類型代碼：\n" +
-                        "command - 前進指揮所\n" +
-                        "fire - 消防車/火災\n" +
-                        "medical - 醫療救護站\n" +
-                        "shelter - 避難收容所\n" +
-                        "police - 警察/維安\n" +
-                        "hazard - 災害/警戒點", 
-                        "fire"
-                    );
-                    
-                    if (!choice || !disasterIcons[choice]) {
-                        choice = "hazard";
-                    }
-
-                    const iconInfo = disasterIcons[choice];
-                    const msg = prompt("請輸入位置狀況說明：") || iconInfo.name;
-
-                    const data = { 
-                        id: 'obj_' + Date.now(), 
-                        shapeType: "marker", 
-                        coordinates: [lat, lng], 
-                        message: msg, 
-                        creator: currentUser, 
-                        color: iconInfo.color, 
-                        iconType: choice,      
-                        fillOpacity: 0, 
-                        time: getFormattedTime() 
-                    };
-                    
-                    renderObjectOnMap(data); 
-                    socket.emit('new_object', data); 
-                    switchTool('pan');
-                }else if (currentTool === 'polyline' || currentTool === 'polygon') {
+                    const msg = prompt("請輸入位置狀況：") || "未命名位置";
+                    const data = { id: 'obj_' + Date.now(), shapeType: "marker", coordinates: [lat, lng], message: msg, creator: currentUser, color: "#3388ff", fillOpacity: 0, time: getFormattedTime() };
+                    renderObjectOnMap(data); socket.emit('new_object', data); switchTool('pan');
+                } else if (currentTool === 'polyline' || currentTool === 'polygon') {
                     tempPoints.push([lat, lng]);
                     if (tempPoints.length === 1) {
                         tempShape = (currentTool === 'polyline') ? L.polyline(tempPoints, {color: '#3388ff', weight: 6}).addTo(map) : L.polygon(tempPoints, {color: '#3388ff', fillOpacity: 0.3}).addTo(map);
@@ -2314,41 +2260,6 @@ async function reverseGeocode(lat, lng) {
         console.error("逆地理編碼請求失敗：", error);
     }
     return null;
-}
-        // 1. 定義防救災標準圖標庫清單
-const disasterIcons = {
-    command: { name: "前進指揮所", icon: "fa-solid fa-chess-knight", color: "#1d4ed8" }, // 藍色指揮
-    fire: { name: "消防車/火災", icon: "fa-solid fa-fire-extinguisher", color: "#ea580c" }, // 橘紅消防
-    medical: { name: "醫療救護站", icon: "fa-solid fa-house-medical", color: "#dc2626" }, // 紅十字醫療
-    shelter: { name: "避難收容所", icon: "fa-solid fa-people-roof", color: "#16a34a" }, // 綠色收容
-    police: { name: "警察/維安", icon: "fa-solid fa-shield-halved", color: "#2563eb" }, // 警政維安
-    hazard: { name: "災害/警戒點", icon: "fa-solid fa-triangle-exclamation", color: "#ca8a04" } // 黃色警戒
-};
-
-// 2. 建立動態生成 Leaflet 自訂 Marker（DivIcon）的函式
-function createDisasterIcon(typeKey) {
-    const item = disasterIcons[typeKey] || disasterIcons.hazard;
-    
-    return L.divIcon({
-        className: 'disaster-custom-marker',
-        html: `
-            <div style="
-                background-color: ${item.color}; 
-                width: 36px; height: 36px; 
-                border-radius: 50%; 
-                display: flex; align-items: center; justify-content: center; 
-                color: white; 
-                border: 2px solid #ffffff; 
-                box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-                font-size: 15px;
-            ">
-                <i class="${item.icon}"></i>
-            </div>
-        `,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-        popupAnchor: [0, -18]
-    });
 }
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
