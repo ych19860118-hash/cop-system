@@ -1046,46 +1046,41 @@ function submitEventReport() {
         return;
     }
 
+    // 1. 統一產生唯一的 ID
+    const markerId = 'evt_' + Date.now();
+
     const eventData = {
-        id: 'evt_' + Date.now(),
+        id: markerId, // 確保前後端使用同一個 ID
         category: category,
         description: description,
         lat: pendingEventLatLng.lat,
         lng: pendingEventLatLng.lng,
         photoData: pendingPhotoBase64,
-        sender: currentUser // 帶上送出者帳號
+        sender: currentUser
     };
-socket.emit('send-event-marker', eventData);
-// 1. 建立「事件類別」與「相對應圖示」的對照表
-const categoryIcons = {
-    // 傳統災防
-    '道路阻斷': '🚫',
-    '火災': '🔥',
-    '土石流': '⚠️',
-    '淹水災情': '🌊',
-    '設施損壞': '🏚️',
-    '人員受困': '🆘',
-    
-    // 專業維生與危害
-    '電力中斷': '⚡',
-    '毒化災氣體外洩': '☣️',
-    '通訊中斷': '📶',
-    
-    // 醫療與後勤
-    '醫療救護站': '🏥',
-    '物資發放點': '📦',
-    
-    // 戰術與防護
-    '敵情可疑目標': '🎯',
-    '落彈爆炸點': '💥',
-    '前進指揮所': '🚩',
-    
-    '一般回報': '📌'
-};
+
+    // 2. 1個類別與圖示對照表
+    const categoryIcons = {
+        '道路阻斷': '🚫',
+        '火災': '🔥',
+        '土石流': '⚠️',
+        '淹水災情': '🌊',
+        '設施損壞': '🏚️',
+        '人員受困': '🆘',
+        '電力中斷': '⚡',
+        '毒化災氣體外洩': '☣️',
+        '通訊中斷': '📶',
+        '醫療救護站': '🏥',
+        '物資發放點': '📦',
+        '敵情可疑目標': '🎯',
+        '落彈爆炸點': '💥',
+        '前進指揮所': '🚩',
+        '一般回報': '📌'
+    };
 
     const iconSymbol = categoryIcons[category] || '⚠️';
 
-    // 2. 建立乾淨的圖示 (移除紅色外框、黑色圓底，只留純符號)
+    // 3. 建立自定義圖示
     const customIcon = L.divIcon({
         className: 'custom-disaster-marker',
         html: `<div style="font-size: 28px; text-align: center; text-shadow: 0 0 4px #000;">${iconSymbol}</div>`,
@@ -1093,8 +1088,7 @@ const categoryIcons = {
         iconAnchor: [16, 16]
     });
 
-    // 3. 建立帶有「刪除按鈕」的 Popup 內容
-    const markerId = 'evt_' + Date.now();
+    // 4. 建立 Popup 內容
     let popupContent = `<div style="max-width: 200px;" id="popup-${markerId}">
         <b>${iconSymbol} ${category}</b>
         <hr style="margin:4px 0;">
@@ -1104,25 +1098,24 @@ const categoryIcons = {
         popupContent += `<img src="${pendingPhotoBase64}" style="width:100%; margin-top:5px; border-radius:4px;">`;
     }
 
-    // 加上刪除按鈕
     popupContent += `<button onclick="deleteEventMarker('${markerId}')" style="margin-top: 8px; width: 100%; background: #ff4d4d; color: #fff; border: none; padding: 4px; border-radius: 4px; cursor: pointer;">刪除事件</button>
     </div>`;
 
-    // 4. 建立 Marker 並存入變數以供刪除使用
+    // 5. 在本地端直接渲染 Marker（解決你自己畫面沒圖案的問題）
     const marker = L.marker([pendingEventLatLng.lat, pendingEventLatLng.lng], { icon: customIcon }).addTo(map);
     marker.bindPopup(popupContent);
-    marker.options.eventId = markerId; // 綁定 ID
+    marker.options.eventId = markerId;
 
-    // 記錄到全域物件中以便管理刪除
-    if (!window.activeEventMarkers) window.activeEventMarkers = {};
-    window.activeEventMarkers[markerId] = marker;
+    // 存入全域管理變數（對應你前面的 allEventLayers）
+    if (!window.allEventLayers) window.allEventLayers = {};
+    window.allEventLayers[markerId] = { layer: marker };
 
-    // 5. 廣播與收尾
-    socket.emit('new_event', eventData);
+    // 6. 統一發送給伺服器（使用後端有在監聽的事件名稱，例如 'add_event'，請根據你後端實際接收的事件名稱調整，這裡示範用 'add_event'）
+    socket.emit('add_event', eventData);
+
     closeEventModal();
     showToast("✅ 事件回報已廣播至頻道");
 }
-
 function finishCurrentDrawing() {
     if (typeof isMeasuring !== 'undefined' && isMeasuring) {
         isMeasuring = false;
