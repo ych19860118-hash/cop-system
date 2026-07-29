@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>COP System協同地理圖資</title>
@@ -1094,7 +1095,7 @@ function finishCurrentDrawing() {
     switchTool('pan');
 }
 
- function initDrawingEvents() {
+function initDrawingEvents() {
             map.on('click', function(e) {
                 if (currentTool === 'event') {
                     pendingEventLatLng = e.latlng;
@@ -1107,9 +1108,41 @@ function finishCurrentDrawing() {
                 const lat = e.latlng.lat, lng = e.latlng.lng;
                 
                 if (currentTool === 'marker') {
-                    const msg = prompt("請輸入位置狀況：") || "未命名位置";
-                    const data = { id: 'obj_' + Date.now(), shapeType: "marker", coordinates: [lat, lng], message: msg, creator: currentUser, color: "#3388ff", fillOpacity: 0, time: getFormattedTime() };
-                    renderObjectOnMap(data); socket.emit('new_object', data); switchTool('pan');
+                    // 1. 彈出選單讓使用者選擇防救災圖示類型
+                    let choice = prompt(
+                        "請選擇防救災圖標類型代碼：\n" +
+                        "command - 前進指揮所\n" +
+                        "fire - 消防車/火災\n" +
+                        "medical - 醫療救護站\n" +
+                        "shelter - 避難收容所\n" +
+                        "police - 警察/維安\n" +
+                        "hazard - 災害/警戒點", 
+                        "fire"
+                    );
+                    
+                    if (!choice || !disasterIcons[choice]) {
+                        choice = "hazard";
+                    }
+
+                    const iconInfo = disasterIcons[choice];
+                    const msg = prompt("請輸入位置狀況說明：") || iconInfo.name;
+
+                    // 2. 建立資料物件
+                    const data = { 
+                        id: 'obj_' + Date.now(), 
+                        shapeType: "marker", 
+                        coordinates: [lat, lng], 
+                        message: msg, 
+                        creator: currentUser, 
+                        color: iconInfo.color, 
+                        iconType: choice,      
+                        fillOpacity: 0, 
+                        time: getFormattedTime() 
+                    };
+                    
+                    renderObjectOnMap(data); 
+                    socket.emit('new_object', data); 
+                    switchTool('pan');
                 } else if (currentTool === 'polyline' || currentTool === 'polygon') {
                     tempPoints.push([lat, lng]);
                     if (tempPoints.length === 1) {
@@ -1145,8 +1178,8 @@ function finishCurrentDrawing() {
             map.on('contextmenu', function(e) {
                 if (currentTool === 'pan' || currentTool === 'locate' || currentTool === 'event' || currentTool === 'search') return;
                 if (e.originalEvent) {
-        e.originalEvent.preventDefault();
-    }
+                    e.originalEvent.preventDefault();
+                }
                 finishCurrentDrawing();
             });
 
@@ -1177,46 +1210,39 @@ function finishCurrentDrawing() {
             }, { passive: true });
         }
 
-        async function login() {
-    const userIn = document.getElementById('username').value.trim();
-    const passIn = document.getElementById('room-password').value;
-    const adminSecIn = document.getElementById('admin-secret').value;
-    const roomSel = document.getElementById('room-select').value;
-    let targetRoom = roomSel === 'custom' ? document.getElementById('custom-room-name').value.trim() : roomSel;
-    
-    if(!userIn) { alert("請輸入通報暱稱！"); return; }
-    
-    try {
-        const res = await fetch(`${SERVER_URL}/api/login`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ username: userIn, roomPassword: passIn, roomName: targetRoom, adminSecret: adminSecIn })
-        });
-        const data = await res.json();
-        if (data.success) {
-            currentUser = data.username; currentRoom = data.roomName;
-            document.getElementById('login-box').style.display = 'none';
-            document.getElementById('map').style.display = 'block'; 
-            document.getElementById('custom-toolbar').style.display = 'flex'; 
-            document.getElementById('toggle-info-btn').style.display = 'flex';
-            document.getElementById('toggle-chat-btn').style.display = 'flex';
-            document.getElementById('toggle-users-btn').style.display = 'flex';
-            document.getElementById('toggle-help-btn').style.display = 'flex';
-            document.getElementById('state-room').innerText = currentRoom;
-            
-            if (currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]')) {
-                document.getElementById('admin-clear-btn').style.display = 'block';
+        function renderObjectOnMap(data) {
+            const pts = data.coordinates;
+            let mainLayer = null;
+            let centerLatLng = null;
+
+            if (data.shapeType === "marker") {
+                const markerIconType = data.iconType || "hazard";
+                const customMarkerIcon = typeof createDisasterIcon === 'function' 
+                    ? createDisasterIcon(markerIconType) 
+                    : L.divIcon({ html: '📍', className: 'tactical-svg-marker' });
+
+                mainLayer = L.marker(pts, { icon: customMarkerIcon, draggable: (data.creator === currentUser || currentUser === 'admin') }); 
+                centerLatLng = L.latLng(pts);
+            } else if (data.shapeType === "polyline") {
+                mainLayer = L.polyline(pts, { color: data.color || '#3388ff', weight: 6 });
+                centerLatLng = mainLayer.getBounds().getCenter();
+            } else if (data.shapeType === "polygon") {
+                mainLayer = L.polygon(pts, { color: data.color || '#3388ff', fillOpacity: data.fillOpacity ?? 0.3 });
+                centerLatLng = mainLayer.getBounds().getCenter();
+            } else if (data.shapeType === "rectangle") {
+                mainLayer = L.rectangle(pts, { color: data.color || '#3388ff', fillOpacity: data.fillOpacity ?? 0.3 });
+                centerLatLng = mainLayer.getBounds().getCenter();
+            } else if (data.shapeType === "circle") {
+                mainLayer = L.circle(pts, { radius: data.radius || 100, color: data.color || '#3388ff', fillOpacity: data.fillOpacity ?? 0.3 });
+                centerLatLng = mainLayer.getLatLng();
             }
-            
-            initMapInstance(); 
-            setTimeout(() => { if (map) map.invalidateSize(); }, 300); 
-            initSocketAndLayers(); 
-        } else { 
-            document.getElementById('login-error').innerText = data.message; 
+
+            if (mainLayer) {
+                const popupContent = `<b>${data.message || ''}</b><br><small>建立者: ${data.creator || '未知'} (${data.time || ''})</small>`;
+                mainLayer.bindPopup(popupContent);
+                drawnItems.addLayer(mainLayer);
+            }
         }
-    } catch (err) { 
-        document.getElementById('login-error').innerText = "連線後端錯誤！"; 
-    }
-}
         function initSocketAndLayers() {
             socket = io(SERVER_URL);
             socket.emit('join_room', { roomName: currentRoom, username: currentUser });
@@ -2260,6 +2286,41 @@ async function reverseGeocode(lat, lng) {
         console.error("逆地理編碼請求失敗：", error);
     }
     return null;
+}
+        // 1. 定義防救災標準圖標庫清單
+const disasterIcons = {
+    command: { name: "前進指揮所", icon: "fa-solid fa-chess-knight", color: "#1d4ed8" }, // 藍色指揮
+    fire: { name: "消防車/火災", icon: "fa-solid fa-fire-extinguisher", color: "#ea580c" }, // 橘紅消防
+    medical: { name: "醫療救護站", icon: "fa-solid fa-house-medical", color: "#dc2626" }, // 紅十字醫療
+    shelter: { name: "避難收容所", icon: "fa-solid fa-people-roof", color: "#16a34a" }, // 綠色收容
+    police: { name: "警察/維安", icon: "fa-solid fa-shield-halved", color: "#2563eb" }, // 警政維安
+    hazard: { name: "災害/警戒點", icon: "fa-solid fa-triangle-exclamation", color: "#ca8a04" } // 黃色警戒
+};
+
+// 2. 建立動態生成 Leaflet 自訂 Marker（DivIcon）的函式
+function createDisasterIcon(typeKey) {
+    const item = disasterIcons[typeKey] || disasterIcons.hazard;
+    
+    return L.divIcon({
+        className: 'disaster-custom-marker',
+        html: `
+            <div style="
+                background-color: ${item.color}; 
+                width: 36px; height: 36px; 
+                border-radius: 50%; 
+                display: flex; align-items: center; justify-content: center; 
+                color: white; 
+                border: 2px solid #ffffff; 
+                box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+                font-size: 15px;
+            ">
+                <i class="${item.icon}"></i>
+            </div>
+        `,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+        popupAnchor: [0, -18]
+    });
 }
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
