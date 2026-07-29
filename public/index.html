@@ -520,14 +520,18 @@ cursor:pointer;
 
 
     <!-- 即時事件通報對話框 -->
-    <div id="event-modal">
+   <div id="event-modal">
         <h3>即時事件回報</h3>
         <label>事件類別：</label>
         <select id="evt-category">
             <option value="道路阻斷">道路阻斷</option>
+            <option value="火災">🔥 火災</option>
+            <option value="土石流">⚠️ 土石流 / 坍方</option>
+            <option value="淹水災情">🌊 淹水災情</option>
             <option value="設施損壞">設施損壞</option>
-            <option value="淹水災情">淹水災情</option>
-            <option value="人員受困">人員受困</option>
+            <option value="人員受困">🆘 人員受困</option>
+            <option value="醫療救護">🚑 醫療救護</option>
+            <option value="交通事故">🚗 交通事故</option>
             <option value="一般回報">一般回報</option>
         </select>
         <label>事件描述：</label>
@@ -1039,13 +1043,17 @@ function submitEventReport() {
     };
 
 // 1. 建立「事件類別」與「相對應圖示」的對照表
-    const categoryIcons = {
-        '道路阻斷': '🚫',
-        '設施損壞': '🏚️',
-        '淹水災情': '💧',
-        '人員受困': '🆘',
-        '一般回報': '📌'
-    };
+const categoryIcons = {
+    '道路阻斷': '🚫',
+    '火災': '🔥',
+    '土石流': '⚠️',
+    '淹水災情': '🌊',
+    '設施損壞': '🏚️',
+    '人員受困': '🆘',
+    '醫療救護': '🚑',
+    '交通事故': '🚗',
+    '一般回報': '📌'
+};
 
     const iconSymbol = categoryIcons[category] || '⚠️';
 
