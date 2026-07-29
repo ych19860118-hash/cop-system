@@ -615,6 +615,29 @@ cursor:pointer;
     <div id="toast-container"></div>
     <div id="map"></div>
     <script>
+        // 防救災圖示定義與對照表
+        const disasterIcons = {
+            command: { name: "前進指揮所", color: "#e74c3c", icon: "fa-flag" },
+            fire:    { name: "消防車/火災", color: "#e67e22", icon: "fa-fire" },
+            medical: { name: "醫療救護站", color: "#2ecc71", icon: "fa-briefcase-medical" },
+            shelter: { name: "避難收容所", color: "#3498db", icon: "fa-house-chimney" },
+            police:  { name: "警察/維安", color: "#9b59b6", icon: "fa-shield-halved" },
+            hazard:  { name: "災害/警戒點", color: "#f1c40f", icon: "fa-triangle-exclamation" }
+        };
+
+        // 產生 SVG / FontAwesome 圖示的函式
+        function createDisasterIcon(type) {
+            const info = disasterIcons[type] || disasterIcons['hazard'];
+            return L.divIcon({
+                html: `<div style="background-color: ${info.color}; width: 32px; height: 32px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 5px rgba(0,0,0,0.5);">
+                         <i class="fa-solid ${info.icon}" style="color: white; font-size: 14px;"></i>
+                       </div>`,
+                className: 'custom-disaster-marker',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+                popupAnchor: [0, -16]
+            });
+        }
         let isMeasuring = false;
 let measurePoints = [];
 let measurePolyline = null;
