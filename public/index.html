@@ -419,9 +419,12 @@ cursor:pointer;
         </svg>
     </button>
 
-    <!-- 改成點擊時打開您新設計的圖示選擇視窗 -->
+<!-- 即時事件回報按鈕 -->
 <button class="tool-btn" id="btn-event" onclick="openDisasterModal()" title="即時事件回報與照片上傳">
-    <svg width="20" height="20" ...>...</svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#39ff14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+        <circle cx="12" cy="13" r="4"></circle>
+    </svg>
 </button>
 
     <!-- 繪製線條 -->
@@ -2306,10 +2309,11 @@ let selectedDisasterType = 'fire';
 let selectedDisasterIcon = '🔥';
 let selectedDisasterName = '火災濃煙';
 
-// 點擊圖示選項時的切換邏輯
+// 點擊任一災情選項時的切換邏輯
 function selectDisasterType(type) {
     selectedDisasterType = type;
     
+    // 6種災情類別的完整對照表
     const disasterConfig = {
         'fire': { icon: '🔥', name: '火災濃煙' },
         'flood': { icon: '💧', name: '淹水警戒' },
@@ -2324,7 +2328,7 @@ function selectDisasterType(type) {
         selectedDisasterName = disasterConfig[type].name;
     }
 
-    // 更新介面上的選中高亮樣式
+    // 更新介面上的選中高亮外框
     document.querySelectorAll('.disaster-option').forEach(el => {
         if (el.getAttribute('data-type') === type) {
             el.style.borderColor = '#39ff14';
@@ -2335,7 +2339,7 @@ function selectDisasterType(type) {
         }
     });
 
-    // 關閉視窗，並切換到即時回報模式
+    // 關閉 Modal 視窗，準備在地圖上點擊放置
     closeDisasterModal();
     currentTool = 'event'; 
 }
