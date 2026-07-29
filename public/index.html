@@ -1324,20 +1324,15 @@ function finishCurrentDrawing() {
        
 function initSocketAndLayers() {
             socket = io(SERVER_URL);
-            
-            // 1. 防重複綁定：物件
-            socket.off('object_added');
-            socket.on('object_added', data => {
-                renderObjectOnMap(data);
-            });
+socket.off('object_added');
+    socket.on('object_added', data => {
+        renderObjectOnMap(data);
+    });
 
-            // 2. 防重複綁定：事件（包含畫面渲染與 Toast 提示）
-            socket.off('event_added');
-            socket.on('event_added', evtData => {
-                renderEventOnMap(evtData);
-                showToast(`🚨 [${evtData.category}] ${evtData.sender} 剛剛回報了新狀況！`);
-            });
-
+    socket.off('event_added');
+    socket.on('event_added', evtData => {
+        renderEventOnMap(evtData);
+    });
             socket.emit('join_room', { roomName: currentRoom, username: currentUser });
             socket.on('history_objects', function(objects) { if (Array.isArray(objects)) objects.forEach(obj => renderObjectOnMap(obj)); });
             socket.on('history_events', function(events) { if (Array.isArray(events)) events.forEach(evt => renderEventOnMap(evt)); }); 
@@ -1356,11 +1351,13 @@ function initSocketAndLayers() {
                 renderOnlineUsers();
             });
 
-            socket.on('user_notification', function(data) {
-                const actionText = data.action === 'joined' ? '已進入頻道' : '已離開頻道';
-                const notificationText = `${data.name}${actionText}`;
-                showToast(`[系統通知] ${notificationText}`);
-            });
+           socket.on('user_notification', function(data) {
+    const actionText = data.action === 'joined' ? '已進入頻道' : '已離開頻道';
+    const notificationText = `${data.name}${actionText}`;
+    
+    // 只保留右上角 Toast 提示
+    showToast(`[系統通知] ${notificationText}`);
+});
 
             socket.on('receive_chat', function(data) {
                 appendChatMessage(data.sender, data.message, data.time);
@@ -1373,8 +1370,10 @@ function initSocketAndLayers() {
                     if (badge) badge.style.display = 'block';
                 }
             });
-
-            // ⚠️ 注意：原本這裡底下的舊 socket.on('event_added', ...) 已經被刪除了！
+            socket.on('event_added', function(evtData) {
+                renderEventOnMap(evtData);
+                showToast(`🚨 [${evtData.category}] ${evtData.sender} 剛剛回報了新狀況！`);
+            });
 
             socket.on('event_deleted', function(eventId) {
                 if (allEventLayers[eventId]) {
@@ -1383,7 +1382,6 @@ function initSocketAndLayers() {
                 }
                 showToast("🗑️ 事件回報已被移除");
             });
-        }
 
             let peerGPSMarkers = {}; 
             socket.on('peer_gps_updated', function(gpsData) {
