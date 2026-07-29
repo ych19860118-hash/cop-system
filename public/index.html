@@ -2305,13 +2305,31 @@ async function reverseGeocode(lat, lng) {
     }
     return null;
 }
-        // 刪除地圖標記的函式
+// 升級版：萬用刪除地圖標記函式
 function deleteEventMarker(markerId) {
+    let targetMarker = null;
+
+    // 方法一：從我們自己建立的記錄中找
     if (window.activeEventMarkers && window.activeEventMarkers[markerId]) {
-        const marker = window.activeEventMarkers[markerId];
-        map.removeLayer(marker); // 從地圖上移除
-        delete window.activeEventMarkers[markerId]; // 從紀錄中清除
+        targetMarker = window.activeEventMarkers[markerId];
+        delete window.activeEventMarkers[markerId];
+    } 
+    // 方法二：如果找不到，直接遍歷地圖上的所有圖層把對應 ID 的拔掉
+    else if (typeof map !== 'undefined') {
+        map.eachLayer(function (layer) {
+            if (layer instanceof L.Marker && layer.options.eventId === markerId) {
+                targetMarker = layer;
+            }
+        });
+    }
+
+    // 執行從地圖上移除
+    if (targetMarker) {
+        map.removeLayer(targetMarker);
         showToast("🗑️ 已刪除此事件標記");
+    } else {
+        console.warn("找不到對應的標記可刪除，ID:", markerId);
+        showToast("⚠️ 刪除失敗：找不到該標記");
     }
 }
     </script>
