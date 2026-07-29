@@ -1028,16 +1028,47 @@ function submitEventReport() {
         return;
     }
 
-const eventData = {
-    id: 'evt_' + Date.now(),
-    category: category,
-    description: description,
-    lat: pendingEventLatLng.lat,
-    lng: pendingEventLatLng.lng,
-    photoData: pendingPhotoBase64,
-    sender: currentUser // 💡 關鍵：帶上送出者帳號
-};
+    const eventData = {
+        id: 'evt_' + Date.now(),
+        category: category,
+        description: description,
+        lat: pendingEventLatLng.lat,
+        lng: pendingEventLatLng.lng,
+        photoData: pendingPhotoBase64,
+        sender: currentUser // 帶上送出者帳號
+    };
 
+    // 1. 建立「事件類別」與「相對應圖示」的對照表
+    const categoryIcons = {
+        '道路阻斷': '🚫',
+        '設施損壞': '🏚️',
+        '淹水災情': '💧',
+        '人員受困': '🆘',
+        '一般回報': '📌'
+    };
+
+    // 取得對應圖示，若沒有對應到則預設用 ⚠️
+    const iconSymbol = categoryIcons[category] || '⚠️';
+
+    // 2. 建立 Leaflet 自訂圖示 (DivIcon)
+    const customIcon = L.divIcon({
+        className: 'custom-disaster-marker',
+        html: `<div style="font-size: 24px; background: rgba(0,0,0,0.8); padding: 4px; border-radius: 50%; text-align: center; border: 2px solid #39ff14;">${iconSymbol}</div>`,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19]
+    });
+
+    // 3. 在本地地圖上直接加上對應圖示的 Marker 與 Popup 資訊
+    let popupContent = `<div style="max-width: 200px;"><b>${iconSymbol} ${category}</b><hr style="margin:4px 0;"><p>${description}</p>`;
+    if (pendingPhotoBase64) {
+        popupContent += `<img src="${pendingPhotoBase64}" style="width:100%; margin-top:5px; border-radius:4px;">`;
+    }
+    popupContent += `</div>`;
+
+    const marker = L.marker([pendingEventLatLng.lat, pendingEventLatLng.lng], { icon: customIcon }).addTo(map);
+    marker.bindPopup(popupContent);
+
+    // 4. 廣播與收尾
     socket.emit('new_event', eventData);
     closeEventModal();
     showToast("✅ 事件回報已廣播至頻道");
