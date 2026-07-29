@@ -419,10 +419,10 @@ cursor:pointer;
         </svg>
     </button>
 
-    <!-- 即時事件回報與照片上傳 -->
-    <button class="tool-btn" id="btn-event" onclick="switchTool('event')" title="即時事件回報與照片上傳">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-    </button>
+    <!-- 改成點擊時打開您新設計的圖示選擇視窗 -->
+<button class="tool-btn" id="btn-event" onclick="openDisasterModal()" title="即時事件回報與照片上傳">
+    <svg width="20" height="20" ...>...</svg>
+</button>
 
     <!-- 繪製線條 -->
 <button class="tool-btn" id="btn-polyline" onclick="switchTool('polyline')" title="繪製線條">
@@ -612,6 +612,44 @@ cursor:pointer;
     </div>
     
     <div id="toast-container"></div>
+    <!-- 救災圖示選擇浮動視窗 (Modal) -->
+    <div id="disaster-icon-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#1a1a1a; border:2px solid #39ff14; padding:20px; border-radius:10px; z-index:1000; box-shadow:0 8px 24px rgba(0,0,0,0.6); width:320px; color:#fff;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:8px;">
+            <h3 style="margin:0; font-size:16px; color:#39ff14;">選擇災情狀況圖示</h3>
+            <span style="cursor:pointer; color:#a0aec0; font-size:18px;" onclick="closeDisasterModal()">✖</span>
+        </div>
+        <p style="font-size:12px; color:#a0aec0; margin-bottom:12px;">請點選欲標記的類別，再點擊地圖放置：</p>
+        
+        <!-- 圖示方格選單 Grid -->
+        <div id="disaster-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:15px;">
+            <!-- 動態填入或預先定義 -->
+            <div class="disaster-option" data-type="fire" onclick="selectDisasterType('fire')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
+                <div style="font-size:24px;">🔥</div>
+                <div style="font-size:11px; margin-top:4px;">火災濃煙</div>
+            </div>
+            <div class="disaster-option" data-type="flood" onclick="selectDisasterType('flood')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
+                <div style="font-size:24px;">💧</div>
+                <div style="font-size:11px; margin-top:4px;">淹水警戒</div>
+            </div>
+            <div class="disaster-option" data-type="landslide" onclick="selectDisasterType('landslide')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
+                <div style="font-size:24px;">🧱</div>
+                <div style="font-size:11px; margin-top:4px;">土石流</div>
+            </div>
+            <div class="disaster-option" data-type="shelter" onclick="selectDisasterType('shelter')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
+                <div style="font-size:24px;">⛺</div>
+                <div style="font-size:11px; margin-top:4px;">收容所</div>
+            </div>
+            <div class="disaster-option" data-type="medical" onclick="selectDisasterType('medical')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
+                <div style="font-size:24px;">🏥</div>
+                <div style="font-size:11px; margin-top:4px;">醫療救護</div>
+            </div>
+            <div class="disaster-option" data-type="roadclosed" onclick="selectDisasterType('roadclosed')" style="background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:all 0.2s;">
+                <div style="font-size:24px;">🚫</div>
+                <div style="font-size:11px; margin-top:4px;">道路封閉</div>
+            </div>
+        </div>
+        <button onclick="closeDisasterModal()" style="width:100%; background:#333; border:none; color:#fff; padding:8px; border-radius:4px; cursor:pointer;">取消</button>
+    </div>
     <div id="map"></div>
     <script>
         let isMeasuring = false;
@@ -2260,6 +2298,56 @@ async function reverseGeocode(lat, lng) {
         console.error("逆地理編碼請求失敗：", error);
     }
     return null;
+}
+        // ==========================================
+// 1. 救災圖示選擇與 Modal 控制邏輯
+// ==========================================
+let selectedDisasterType = 'fire';
+let selectedDisasterIcon = '🔥';
+let selectedDisasterName = '火災濃煙';
+
+// 點擊圖示選項時的切換邏輯
+function selectDisasterType(type) {
+    selectedDisasterType = type;
+    
+    const disasterConfig = {
+        'fire': { icon: '🔥', name: '火災濃煙' },
+        'flood': { icon: '💧', name: '淹水警戒' },
+        'landslide': { icon: '🧱', name: '土石流' },
+        'shelter': { icon: '⛺', name: '收容所' },
+        'medical': { icon: '🏥', name: '醫療救護' },
+        'roadclosed': { icon: '🚫', name: '道路封閉' }
+    };
+
+    if (disasterConfig[type]) {
+        selectedDisasterIcon = disasterConfig[type].icon;
+        selectedDisasterName = disasterConfig[type].name;
+    }
+
+    // 更新介面上的選中高亮樣式
+    document.querySelectorAll('.disaster-option').forEach(el => {
+        if (el.getAttribute('data-type') === type) {
+            el.style.borderColor = '#39ff14';
+            el.style.background = '#1a3a1a';
+        } else {
+            el.style.borderColor = '#444';
+            el.style.background = '#2a2a2a';
+        }
+    });
+
+    // 關閉視窗，並切換到即時回報模式
+    closeDisasterModal();
+    currentTool = 'event'; 
+}
+
+// 關閉 Modal
+function closeDisasterModal() {
+    document.getElementById('disaster-icon-modal').style.display = 'none';
+}
+
+// 開啟 Modal
+function openDisasterModal() {
+    document.getElementById('disaster-icon-modal').style.display = 'block';
 }
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
