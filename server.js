@@ -106,27 +106,6 @@ io.on('connection', (socket) => {
         rooms[data.roomName].userList.push(data.username);
         rooms[data.roomName].lastActive = Date.now();
         
-        socket.on('disconnect', () => {
-        if (socket.myRoom && rooms[socket.myRoom]) {
-            if (socket.myName) {
-                rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
-                
-                // 加上這段：把離開訊息存入歷史紀錄並廣播
-                const leftMsg = { sender: "系統通知", message: `${socket.myName}已離開頻道`, time: getFormattedTime() };
-                rooms[socket.myRoom].chatHistory.push(leftMsg);
-                io.to(socket.myRoom).emit('receive_chat', leftMsg);
-
-                io.to(socket.myRoom).emit('user_notification', {
-                    name: socket.myName,
-                    action: 'left'
-                });
-            }
-            io.to(socket.myRoom).emit('update_user_list', rooms[socket.myRoom].userList);
-            io.to(socket.myRoom).emit('update_user_count', rooms[socket.myRoom].userList.length);
-            io.to(socket.myRoom).emit('user_disconnected', socket.id);
-        }
-    });
-        
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         
@@ -185,7 +164,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- 即時事件回報相關 (新補上) ---
+    // --- 即時事件回報相關 ---
     socket.on('new_event', (evtData) => {
         if (socket.myRoom && rooms[socket.myRoom]) {
             rooms[socket.myRoom].lastActive = Date.now();
@@ -202,12 +181,17 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 獨立在最外層的斷線監聽，確保只會綁定一次並正確廣播離開
     socket.on('disconnect', () => {
         if (socket.myRoom && rooms[socket.myRoom]) {
             if (socket.myName) {
                 rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
                 
-                // 廣播給同房間其他人：某人離開頻道
+                // 把離開訊息存入歷史紀錄並廣播一次
+                const leftMsg = { sender: "系統通知", message: `${socket.myName}已離開頻道`, time: getFormattedTime() };
+                rooms[socket.myRoom].chatHistory.push(leftMsg);
+                io.to(socket.myRoom).emit('receive_chat', leftMsg);
+
                 io.to(socket.myRoom).emit('user_notification', {
                     name: socket.myName,
                     action: 'left'
