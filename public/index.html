@@ -1297,6 +1297,53 @@ function finishCurrentDrawing() {
         document.getElementById('login-error').innerText = "連線後端錯誤！"; 
     }
 }
+        if (typeof map !== 'undefined' && map !== null) {
+        map.off('draw:created'); // 避免重複綁定
+        map.on('draw:created', function (e) {
+            const layer = e.layer;
+            const shapeType = e.layerType;
+            
+            let coordinates = shapeType === 'marker' ? [layer.getLatLng().lat, layer.getLatLng().lng] : 
+                              shapeType === 'circle' ? [layer.getLatLng().lat, layer.getLatLng().lng] : 
+                              layer.getLatLngs();
+
+            const mapObjectData = {
+                id: 'obj_' + Date.now(),
+                shapeType: shapeType,
+                coordinates: coordinates,
+                radius: shapeType === 'circle' ? layer.getRadius() : null,
+                color: '#dc3545',
+                message: '道路阻斷',
+                creator: currentUser || '未知',
+                time: new Date().toLocaleTimeString()
+            };
+
+            socket.emit('new_object', mapObjectData);
+        });
+    }
+
+    // 2. 接收後端廣播的新圖形並畫在畫面上
+    if (typeof socket !== 'undefined') {
+        socket.off('object_added'); // 避免重複綁定
+        socket.on('object_added', function(data) {
+            if (typeof renderObjectOnMap === 'function') {
+                renderObjectOnMap(data);
+            }
+        });
+
+        // 3. 接收後端廣播的刪除圖形並從畫面上移除
+        socket.off('object_deleted'); // 避免重複綁定
+        socket.on('object_deleted', function(objId) {
+            if (typeof allMapLayers !== 'undefined' && allMapLayers && allMapLayers[objId]) {
+                map.removeLayer(allMapLayers[objId].layer);
+                if (allMapLayers[objId].pin) map.removeLayer(allMapLayers[objId].pin);
+                if (allMapLayers[objId].resizePin) map.removeLayer(allMapLayers[objId].resizePin);
+                if (allMapLayers[objId].vertexPins) allMapLayers[objId].vertexPins.forEach(vp => map.removeLayer(vp));
+                delete allMapLayers[objId];
+            }
+        });
+    }
+}
         function initSocketAndLayers() {
             socket = io(SERVER_URL);
             socket.emit('join_room', { roomName: currentRoom, username: currentUser });
@@ -2396,47 +2443,6 @@ function deleteEventMarker(markerId) {
         allEventLayers[evtData.id] = { layer: marker, data: evtData };
     }
 }
-       // 1. 繪製完成時自動發送廣播（剛剛加的）
-if (typeof map !== 'undefined') {
-    map.on('draw:created', function (e) {
-        const layer = e.layer;
-        const shapeType = e.layerType;
-        
-        let coordinates = shapeType === 'marker' ? [layer.getLatLng().lat, layer.getLatLng().lng] : 
-                          shapeType === 'circle' ? [layer.getLatLng().lat, layer.getLatLng().lng] : 
-                          layer.getLatLngs();
-
-        const mapObjectData = {
-            id: 'obj_' + Date.now(),
-            shapeType: shapeType,
-            coordinates: coordinates,
-            radius: shapeType === 'circle' ? layer.getRadius() : null,
-            color: '#dc3545',
-            message: '道路阻斷',
-            creator: currentUser || '未知',
-            time: new Date().toLocaleTimeString()
-        };
-
-        socket.emit('new_object', mapObjectData);
-    });
-}
-
-// 2. 接收後端廣播的新圖形並畫在畫面上（這段放這裡）
-socket.on('object_added', function(data) {
-    renderObjectOnMap(data);
-});
-
-// 3. 接收後端廣播的刪除圖形並從畫面上移除（這段也放這裡）
-socket.on('object_deleted', function(objId) {
-    if (allMapLayers && allMapLayers[objId]) {
-        map.removeLayer(allMapLayers[objId].layer);
-        if (allMapLayers[objId].pin) map.removeLayer(allMapLayers[objId].pin);
-        if (allMapLayers[objId].resizePin) map.removeLayer(allMapLayers[objId].resizePin);
-        if (allMapLayers[objId].vertexPins) allMapLayers[objId].vertexPins.forEach(vp => map.removeLayer(vp));
-        delete allMapLayers[objId];
-    }
-});
-
 </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
     <div style="padding:15px; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
