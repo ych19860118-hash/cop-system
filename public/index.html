@@ -1334,13 +1334,13 @@ function finishCurrentDrawing() {
                 showToast(`🚨 [${evtData.category}] ${evtData.sender} 剛剛回報了新狀況！`);
             });
 
-            socket.on('event_deleted', function(eventId) {
-                if (allEventLayers[eventId]) {
-                    map.removeLayer(allEventLayers[eventId].layer);
-                    delete allEventLayers[eventId];
-                }
-                showToast("🗑️ 事件回報已被移除");
-            });
+socket.on('event_deleted', function(eventId) {
+    if (window.allEventLayers && window.allEventLayers[eventId]) {
+        map.removeLayer(window.allEventLayers[eventId].layer);
+        delete window.allEventLayers[eventId];
+    }
+    showToast("🗑️ 事件回報已被移除");
+});
 
             let peerGPSMarkers = {}; 
             socket.on('peer_gps_updated', function(gpsData) {
