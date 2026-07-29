@@ -2330,18 +2330,23 @@ if (typeof map !== 'undefined' && map && !window.hasMeasureDblClick) {
     });
 }
         // 💡 貼在這裡：新增的管理者/擁有者事件刪除函式
-        function adminOrOwnerDeleteEvent(eventId) {
-            if (confirm("確定要刪除這個事件回報嗎？")) {
-                if (allEventLayers[eventId]) {
-                    map.removeLayer(allEventLayers[eventId].layer);
-                    delete allEventLayers[eventId];
-                }
-                if (socket) {
-                    socket.emit('delete_event', eventId);
-                }
-                showToast("🗑️ 已成功刪除事件回報");
-            }
+function adminOrOwnerDeleteEvent(eventId) {
+    if (confirm("確定要刪除這個事件回報嗎？")) {
+        // 1. 馬上通知後端刪除該事件（後端會順便廣播給其他人）
+        if (socket) {
+            socket.emit('delete_event', eventId);
         }
+
+        // 2. 馬上將你自己的地圖圖層移除
+        if (allEventLayers[eventId]) {
+            map.removeLayer(allEventLayers[eventId].layer);
+            delete allEventLayers[eventId];
+        }
+
+        // 3. 顯示提示
+        showToast("🗑️ 已成功刪除事件回報");
+    }
+}
         // 座標反查地址 (逆地理編碼)
 async function reverseGeocode(lat, lng) {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=zh-Hant&email=your-email@example.com`;
