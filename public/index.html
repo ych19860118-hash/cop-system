@@ -1363,33 +1363,32 @@ socket.on('event_deleted', function(eventId) {
                 }
             });
             
-socket.on('clear_all_objects', () => {
-    // 1. 清除一般圖資物件
-    if (window.allMapLayers) {
-        Object.keys(window.allMapLayers).forEach(id => {
-            if (window.allMapLayers[id].layer) map.removeLayer(window.allMapLayers[id].layer);
-            if (window.allMapLayers[id].pin) map.removeLayer(window.allMapLayers[id].pin);
-            if (window.allMapLayers[id].resizePin) map.removeLayer(window.allMapLayers[id].resizePin);
-            if (window.allMapLayers[id].vertexPins) window.allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
+    socket.on('clear_all_objects', () => {
+    // 1. 清除一般地圖圖資
+    Object.keys(allMapLayers).forEach(id => {
+        map.removeLayer(allMapLayers[id].layer);
+        if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
+        if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
+        if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
+    });
+    
+    // 2. 清除事件圖資
+    Object.keys(allEventLayers).forEach(id => {
+        map.removeLayer(allEventLayers[id].layer);
+    });
+
+    // 3. 【新增】清除即時回報事件圖示（請依你實際存放的變數名稱調整，例如 allEventPins）
+    if (typeof allEventPins !== 'undefined') {
+        Object.keys(allEventPins).forEach(id => {
+            map.removeLayer(allEventPins[id]);
         });
-        window.allMapLayers = {};
+        allEventPins = {};
     }
 
-    // 2. 【關鍵修正】強制透過 window 清除所有即時事件回報圖層
-    if (window.allEventLayers) {
-        Object.keys(window.allEventLayers).forEach(id => {
-            if (window.allEventLayers[id] && window.allEventLayers[id].layer) {
-                map.removeLayer(window.allEventLayers[id].layer);
-            }
-        });
-        window.allEventLayers = {};
-    }
-
-    // 3. 順便清空其他可能殘留的事件記錄
-    if (window.activeEventMarkers) {
-        window.activeEventMarkers = {};
-    }
-
+    // 重設變數
+    allMapLayers = {};
+    allEventLayers = {};
+    
     showToast("⚠️ [安全公告] 系統最高權限指揮官已清空所有地圖圖資與事件！");
 });
         function renderOnlineUsers() {
