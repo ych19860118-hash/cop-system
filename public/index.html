@@ -1420,12 +1420,13 @@ function finishCurrentDrawing() {
         }
 
 function renderEventOnMap(data) {
-    if (allEventLayers[data.id]) {
-        map.removeLayer(allEventLayers[data.id].layer);
-        delete allEventLayers[data.id];
+    // 1. 防重複：如果已經存在就先移除舊的
+    if (window.allEventLayers && window.allEventLayers[data.id]) {
+        map.removeLayer(window.allEventLayers[data.id].layer);
+        delete window.allEventLayers[data.id];
     }
 
-    // 完整的類別與符號對照表
+    // 2. 完整的類別與符號對照表
     const categoryIcons = {
         '道路阻斷': '🚫', '道路中斷': '🚫', '封鎖': '🚫',
         '火災': '🔥', '火警': '🔥',
@@ -1444,9 +1445,9 @@ function renderEventOnMap(data) {
         '一般回報': '📌'
     };
 
-    // 如果找不到完全符合的，預設給一個通用標誌，絕對不會變空白
     const iconSymbol = categoryIcons[data.category] || '📍';
 
+    // 3. 建立自定義標記圖示
     const evtIcon = L.divIcon({
         className: 'custom-disaster-marker',
         html: `<div style="font-size: 28px; text-align: center; text-shadow: 0 0 4px #000;">${iconSymbol}</div>`,
@@ -1454,13 +1455,12 @@ function renderEventOnMap(data) {
         iconAnchor: [16, 16]
     });
 
-    const isCurrentlyDrawing = (currentTool !== 'pan' && currentTool !== 'locate' && currentTool !== 'search');
-    const marker = L.marker([data.lat, data.lng], { icon: evtIcon });
-    
-    // 確保即使不是 pan 狀態，收到歷史或即時廣播時也強制加入地圖
-    marker.addTo(map);
+    // 4. 強制直接建立並加入地圖（不再受 currentTool 限制阻擋）
+    const marker = L.marker([data.lat, data.lng], { icon: evtIcon }).addTo(map);
 
-    allEventLayers[data.id] = { layer: marker, creator: data.sender };
+    // 5. 記錄到全域物件以便後續刪除或管理
+    if (!window.allEventLayers) window.allEventLayers = {};
+    window.allEventLayers[data.id] = { layer: marker, creator: data.sender };
 
     const isOwner = (data.sender === currentUser);
     const isAdmin = currentUser.trim().toLowerCase() === 'admin' || currentUser.includes('[Admin]');
