@@ -106,14 +106,15 @@ io.on('connection', (socket) => {
         rooms[data.roomName].userList.push(data.username);
         rooms[data.roomName].lastActive = Date.now();
         
-        const joinMsg = { sender: "系統通知", message: `【${data.username}】已加入房間`, time: getFormattedTime() };
+        // 💡 統一格式：改成「已進入頻道」，並寫入聊天室歷史紀錄
+        const joinMsg = { sender: "系統通知", message: `${data.username}已進入頻道`, time: getFormattedTime() };
         rooms[data.roomName].chatHistory.push(joinMsg);
         io.to(data.roomName).emit('receive_chat', joinMsg);
         
         io.to(data.roomName).emit('update_user_list', rooms[data.roomName].userList);
         io.to(data.roomName).emit('update_user_count', rooms[data.roomName].userList.length);
         
-        // 廣播給同房間其他人：某人進入頻道
+        // 廣播給同房間其他人觸發 Toast 提示
         socket.to(data.roomName).emit('user_notification', {
             name: data.username,
             action: 'joined'
@@ -168,7 +169,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- 即時事件回報相關 (新補上) ---
+    // --- 即時事件回報相關 ---
     socket.on('new_event', (evtData) => {
         if (socket.myRoom && rooms[socket.myRoom]) {
             rooms[socket.myRoom].lastActive = Date.now();
@@ -185,12 +186,17 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 💡 獨立放在最外層的斷線監聽，確保只會觸發一次
     socket.on('disconnect', () => {
         if (socket.myRoom && rooms[socket.myRoom]) {
             if (socket.myName) {
                 rooms[socket.myRoom].userList = rooms[socket.myRoom].userList.filter(u => u !== socket.myName);
                 
-                // 廣播給同房間其他人：某人離開頻道
+                // 統一格式：寫入「已離開頻道」到歷史紀錄並廣播
+                const leftMsg = { sender: "系統通知", message: `${socket.myName}已離開頻道`, time: getFormattedTime() };
+                rooms[socket.myRoom].chatHistory.push(leftMsg);
+                io.to(socket.myRoom).emit('receive_chat', leftMsg);
+
                 io.to(socket.myRoom).emit('user_notification', {
                     name: socket.myName,
                     action: 'left'
