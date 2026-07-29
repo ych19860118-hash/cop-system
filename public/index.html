@@ -1046,7 +1046,7 @@ function submitEventReport() {
         return;
     }
 
-    const eventData = {
+const eventData = {
         id: 'evt_' + Date.now(),
         category: category,
         description: description,
@@ -1055,7 +1055,9 @@ function submitEventReport() {
         photoData: pendingPhotoBase64,
         sender: currentUser // 帶上送出者帳號
     };
-socket.emit('new_event', eventData);
+    
+    console.log("【發送測試】準備發送事件到伺服器：", eventData); // 💡 加這行
+    socket.emit('new_event', eventData);
 // 1. 建立「事件類別」與「相對應圖示」的對照表
 const categoryIcons = {
     // 傳統災防
