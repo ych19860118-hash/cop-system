@@ -804,7 +804,31 @@ function clearMeasure() {
         // 雷達圖層全域變數
         let radarLayer = null;
         let isRadarVisible = false;
-
+const categoryIcons = {
+    // 傳統災防
+    '道路阻斷': '🚫',
+    '火災': '🔥',
+    '土石流': '⚠️',
+    '淹水災情': '🌊',
+    '設施損壞': '🏚️',
+    '人員受困': '🆘',
+    
+    // 專業維生與危害
+    '電力中斷': '⚡',
+    '毒化災氣體外洩': '☣️',
+    '通訊中斷': '📶',
+    
+    // 醫療與後勤
+    '醫療救護站': '🏥',
+    '物資發放點': '📦',
+    
+    // 戰術與防護
+    '敵情可疑目標': '🎯',
+    '落彈爆炸點': '💥',
+    '前進指揮所': '🚩',
+    
+    '一般回報': '📌'
+};
         function getFormattedTime() {
             const now = new Date();
             const m = String(now.getMonth() + 1).padStart(2, '0');
