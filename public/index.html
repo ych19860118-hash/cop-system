@@ -2375,6 +2375,34 @@ function deleteEventMarker(markerId) {
         showToast("⚠️ 刪除失敗：找不到該標記");
     }
 }
+        function renderEventOnMap(evtData) {
+    // 1. 檢查有沒有對應的 Emoji 圖示（找不到就用預設的 📌）
+    const emoji = categoryIcons[evtData.category] || '📌';
+    
+    // 2. 建立自訂的 Leaflet DivIcon（把 Emoji 變成地圖上的圖示）
+    const customIcon = L.divIcon({
+        className: 'custom-event-icon',
+        html: `<div style="font-size: 24px; text-shadow: 0 0 3px white;">${emoji}</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+    });
+
+    // 3. 建立 Marker 並放到地圖上
+    const marker = L.marker([evtData.lat, evtData.lng], { icon: customIcon }).addTo(map);
+
+    // 4. 綁定點擊彈出視窗（顯示詳細描述、照片與回報者）
+    marker.bindPopup(`
+        <b>${emoji} ${evtData.category}</b><br>
+        回報者：${evtData.sender || '未知'}<br>
+        說明：${evtData.description || '無描述'}<br>
+        ${evtData.photoData ? `<img src="${evtData.photoData}" style="max-width:150px; margin-top:5px;" />` : ''}
+    `);
+
+    // 5. 【最重要】把 Marker 存進全域的圖層陣列中，以便之後按刪除時找得到它！
+    if (typeof allEventLayers !== 'undefined') {
+        allEventLayers[evtData.id] = { layer: marker, data: evtData };
+    }
+}
     </script>
     <div id="data-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:80%; max-width:600px; max-height:80vh; background:#1e1e1e; color:#fff; border:1px solid #444; border-radius:8px; z-index:10000; box-shadow:0 4px 20px rgba(0,0,0,0.5); flex-direction:column;">
     <div style="padding:15px; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
