@@ -1334,34 +1334,12 @@ function finishCurrentDrawing() {
                 showToast(`🚨 [${evtData.category}] ${evtData.sender} 剛剛回報了新狀況！`);
             });
 
-socket.on('clear_all_objects', () => {
-    // 1. 清除一般圖資物件
-    if (typeof allMapLayers !== 'undefined') {
-        Object.keys(allMapLayers).forEach(id => {
-            if (allMapLayers[id].layer) map.removeLayer(allMapLayers[id].layer);
-            if (allMapLayers[id].pin) map.removeLayer(allMapLayers[id].pin);
-            if (allMapLayers[id].resizePin) map.removeLayer(allMapLayers[id].resizePin);
-            if (allMapLayers[id].vertexPins) allMapLayers[id].vertexPins.forEach(vp => map.removeLayer(vp));
-        });
-        allMapLayers = {};
+socket.on('event_deleted', function(eventId) {
+    if (window.allEventLayers && window.allEventLayers[eventId]) {
+        map.removeLayer(window.allEventLayers[eventId].layer);
+        delete window.allEventLayers[eventId];
     }
-
-    // 2. 【關鍵】徹底清除所有即時回報事件圖層與變數
-    if (window.allEventLayers) {
-        Object.keys(window.allEventLayers).forEach(id => {
-            if (window.allEventLayers[id] && window.allEventLayers[id].layer) {
-                map.removeLayer(window.allEventLayers[id].layer);
-            }
-        });
-        window.allEventLayers = {};
-    }
-
-    // 3. 確保其他相關的事件暫存變數也被清空
-    if (window.activeEventMarkers) {
-        window.activeEventMarkers = {};
-    }
-
-    showToast("⚠️ [安全公告] 系統最高權限指揮官已清空所有地圖圖資與事件！");
+    showToast("🗑️ 事件回報已被移除");
 });
 
             let peerGPSMarkers = {}; 
