@@ -1064,6 +1064,7 @@ function submitEventReport() {
         lng: pendingEventLatLng.lng,
         photoData: pendingPhotoBase64,
         sender: currentUser
+        time: new Date().toLocaleString()
     };
 
     // 2. 1個類別與圖示對照表
@@ -1102,6 +1103,7 @@ function submitEventReport() {
     // 4. 建立 Popup 內容
     let popupContent = `<div style="max-width: 200px;" id="popup-${markerId}">
         <b>${iconSymbol} ${category}</b>
+        <div style="font-size: 11px; color: #aaa; margin: 2px 0;">時間：${new Date().toLocaleString()}</div>
         <hr style="margin:4px 0;">
         <p>${description}</p>`;
     
